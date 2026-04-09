@@ -1,0 +1,4 @@
+# Gleaner configuration
+repos:
+  - url: Chorus-AIDLC/Chorus
+    label: "Chorus"
