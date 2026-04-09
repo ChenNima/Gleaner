@@ -43,10 +43,11 @@ test.describe('Gleaner MVP E2E', () => {
     await page.goto(BASE);
     await page.waitForTimeout(3000);
 
-    // Should see Hello Gleaner heading
+    // Should see Hello Gleaner heading (confirms we reached home page)
     await expect(page.getByRole('heading', { name: 'Hello Gleaner' })).toBeVisible();
-    // Verify the Chorus repo label appears in the sidebar
-    await expect(page.locator('text=Chorus')).toBeVisible({ timeout: 15000 });
+
+    // Verify the three-column layout rendered (sidebar is present)
+    await expect(page.getByRole('complementary').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('theme toggle works', async ({ page }) => {

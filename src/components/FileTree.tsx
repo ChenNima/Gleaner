@@ -169,7 +169,7 @@ function RepoSyncStatus({ repo }: { repo: Repo }) {
   return null;
 }
 
-function RepoSection({ repo }: { repo: Repo }) {
+function RepoSection({ repo, onRetry }: { repo: Repo; onRetry?: (fullName: string) => void }) {
   const [expanded, setExpanded] = useState(true);
   const fileTree = useAppStore((s) => s.fileTree);
   const files = fileTree.get(repo.fullName) ?? [];
@@ -196,7 +196,10 @@ function RepoSection({ repo }: { repo: Repo }) {
           {repo.syncStatus === 'error' && (
             <div className="px-3 py-2 text-xs text-destructive">
               <p className="truncate">{repo.syncError ?? 'Sync failed'}</p>
-              <button className="flex items-center gap-1 mt-1 text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => onRetry?.(repo.fullName)}
+                className="flex items-center gap-1 mt-1 text-muted-foreground hover:text-foreground"
+              >
                 <RefreshCw className="h-3 w-3" />
                 Retry
               </button>
@@ -221,7 +224,7 @@ function RepoSection({ repo }: { repo: Repo }) {
   );
 }
 
-export function FileTree() {
+export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) {
   const repos = useAppStore((s) => s.repos);
 
   if (repos.length === 0) {
@@ -241,7 +244,7 @@ export function FileTree() {
   return (
     <div className="py-2 overflow-y-auto h-full">
       {repos.map((repo) => (
-        <RepoSection key={repo.fullName} repo={repo} />
+        <RepoSection key={repo.fullName} repo={repo} onRetry={onRetry} />
       ))}
     </div>
   );

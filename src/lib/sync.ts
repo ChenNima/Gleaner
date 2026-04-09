@@ -102,7 +102,9 @@ async function syncSingleRepo(
   // Background fetch content for new/changed files
   let cachedCount = allFiles.filter((f) => f.content !== null).length;
 
-  for (const item of toFetch) {
+  let i = 0;
+  while (i < toFetch.length) {
+    const item = toFetch[i];
     try {
       const content = await getFileContent(owner, repoName, item.path);
       const fileId = `${repo.fullName}::${item.path}`;
@@ -124,16 +126,18 @@ async function syncSingleRepo(
 
       // Yield to main thread
       await new Promise((r) => setTimeout(r, 10));
+      i++;
     } catch (err) {
       if (err instanceof RateLimitError) {
-        // Pause and wait for rate limit reset
+        // Pause and wait for rate limit reset, then retry same file
         const waitMs = Math.max(0, err.resetAt.getTime() - Date.now()) + 1000;
         await new Promise((r) => setTimeout(r, Math.min(waitMs, 60000)));
-        // Retry will happen on next sync
-        break;
+        // Don't increment i — retry same file
+        continue;
       }
       // Skip individual file errors, continue with others
       console.warn(`Failed to fetch ${item.path}:`, err);
+      i++;
     }
   }
 

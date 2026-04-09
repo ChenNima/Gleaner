@@ -3,6 +3,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
+import rehypeHighlight from 'rehype-highlight';
 import rehypeStringify from 'rehype-stringify';
 import type { MdFile } from '../db';
 import { Loader2 } from 'lucide-react';
@@ -12,29 +13,31 @@ const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 interface MarkdownViewerProps {
   file: MdFile | null;
   loading?: boolean;
+  resolvedLinks?: Map<string, boolean>; // targetTitle -> resolved
   onWikilinkClick?: (target: string) => void;
 }
 
-function preprocessWikilinks(content: string): string {
-  // Replace [[target]] and [[target|alias]] with placeholder HTML
+function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolean>): string {
   return content.replace(WIKILINK_REGEX, (_match, target: string, alias?: string) => {
     const display = alias ?? target;
     const encoded = encodeURIComponent(target.trim());
-    return `<a class="wikilink" data-wikilink="${encoded}">${display}</a>`;
+    const isResolved = resolvedLinks?.get(target.trim().toLowerCase()) ?? false;
+    return `<a class="wikilink" data-wikilink="${encoded}" data-resolved="${isResolved}">${display}</a>`;
   });
 }
 
-export function MarkdownViewer({ file, loading, onWikilinkClick }: MarkdownViewerProps) {
+export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick }: MarkdownViewerProps) {
   const html = useMemo(() => {
     if (!file?.content) return '';
 
-    const preprocessed = preprocessWikilinks(file.content);
+    const preprocessed = preprocessWikilinks(file.content, resolvedLinks);
 
     try {
       const result = unified()
         .use(remarkParse)
         .use(remarkGfm)
         .use(remarkRehype, { allowDangerousHtml: true })
+        .use(rehypeHighlight, { detect: true, ignoreMissing: true })
         .use(rehypeStringify, { allowDangerousHtml: true })
         .processSync(preprocessed);
 
@@ -42,7 +45,7 @@ export function MarkdownViewer({ file, loading, onWikilinkClick }: MarkdownViewe
     } catch {
       return `<p class="text-destructive">Failed to render markdown.</p>`;
     }
-  }, [file?.content]);
+  }, [file?.content, resolvedLinks]);
 
   const handleClick = (e: React.MouseEvent) => {
     const target = (e.target as HTMLElement).closest('[data-wikilink]');

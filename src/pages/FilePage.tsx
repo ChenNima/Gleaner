@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import type { MdFile } from '../db';
 import { getFileContent } from '../lib/github';
-import { resolveWikilink } from '../lib/wikilink-parser';
+import { resolveWikilink, extractWikilinks } from '../lib/wikilink-parser';
 import { useAppStore } from '../stores/app';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 
@@ -13,6 +13,7 @@ export default function FilePage() {
   const setCurrentFileId = useAppStore((s) => s.setCurrentFileId);
   const [file, setFile] = useState<MdFile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resolvedLinks, setResolvedLinks] = useState<Map<string, boolean>>(new Map());
 
   const repoFullName = `${owner}/${name}`;
   const fileId = filePath ? `${repoFullName}::${filePath}` : null;
@@ -44,6 +45,18 @@ export default function FilePage() {
       }
 
       setFile(f ?? null);
+
+      // Resolve wikilinks for styling
+      if (f?.content) {
+        const targets = extractWikilinks(f.content);
+        const resolved = new Map<string, boolean>();
+        for (const target of targets) {
+          const result = await resolveWikilink(target, repoFullName);
+          resolved.set(target.toLowerCase(), result !== null);
+        }
+        setResolvedLinks(resolved);
+      }
+
       setLoading(false);
     })();
 
@@ -62,6 +75,7 @@ export default function FilePage() {
     <MarkdownViewer
       file={file}
       loading={loading}
+      resolvedLinks={resolvedLinks}
       onWikilinkClick={handleWikilinkClick}
     />
   );
