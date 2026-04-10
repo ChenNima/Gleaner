@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronRightIcon } from 'lucide-react';
 import { DocumentThemePicker } from '../components/DocumentThemePicker';
@@ -9,6 +9,9 @@ import { resolveWikilink, extractWikilinks } from '../lib/wikilink-parser';
 import { useAppStore } from '../stores/app';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 
+// Scroll position memory: fileId → scrollTop
+const scrollMemory = new Map<string, number>();
+
 export default function FilePage() {
   const { owner, name, '*': filePath } = useParams();
   const navigate = useNavigate();
@@ -16,6 +19,7 @@ export default function FilePage() {
   const [file, setFile] = useState<MdFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [resolvedLinks, setResolvedLinks] = useState<Map<string, boolean>>(new Map());
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const repoFullName = `${owner}/${name}`;
   const fileId = filePath ? `${repoFullName}::${filePath}` : null;
@@ -80,6 +84,15 @@ export default function FilePage() {
     [navigate, owner, name]
   );
 
+  const handleFolderClick = useCallback(
+    (repoPath: string) => {
+      const fullPath = `${repoFullName}::${repoPath}`;
+      useAppStore.getState().setFocusTreePath(fullPath);
+      useAppStore.getState().setLeftSidebarOpen(true);
+    },
+    [repoFullName]
+  );
+
   const handleBreadcrumbClick = useCallback(
     (segmentPath: string) => {
       // segmentPath is relative to repo, e.g. "docs" or "docs/blogs"
@@ -89,6 +102,36 @@ export default function FilePage() {
     },
     [repoFullName]
   );
+
+  // Save scroll position on scroll (debounced)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !fileId) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        scrollMemory.set(fileId, el.scrollTop);
+      }, 100);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, [fileId]);
+
+  // Restore scroll position after content loads
+  useEffect(() => {
+    if (loading || !fileId) return;
+    const saved = scrollMemory.get(fileId);
+    if (saved != null && scrollRef.current) {
+      // Wait a frame for content to render
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo(0, saved);
+      });
+    }
+  }, [loading, fileId]);
 
   // Build breadcrumb segments: [repo label, ...path parts]
   const pathParts = filePath?.split('/') ?? [];
@@ -138,13 +181,14 @@ export default function FilePage() {
           <DocumentThemePicker />
         </div>
       </div>
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollRef} className="flex-1 overflow-auto">
         <MarkdownViewer
           file={file}
           loading={loading}
           resolvedLinks={resolvedLinks}
           onWikilinkClick={handleWikilinkClick}
           onInternalLinkClick={handleInternalLinkClick}
+          onFolderClick={handleFolderClick}
           repoFullName={repoFullName}
         />
       </div>

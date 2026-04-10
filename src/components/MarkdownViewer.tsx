@@ -25,6 +25,7 @@ interface MarkdownViewerProps {
   resolvedLinks?: Map<string, boolean>;
   onWikilinkClick?: (target: string) => void;
   onInternalLinkClick?: (repoPath: string) => void;
+  onFolderClick?: (repoPath: string) => void;
   repoFullName?: string;
 }
 
@@ -37,7 +38,7 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
   });
 }
 
-export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, repoFullName }: MarkdownViewerProps) {
+export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, onFolderClick, repoFullName }: MarkdownViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markdownTheme = useThemeStore((s) => s.markdownTheme);
 
@@ -81,6 +82,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
                 {...props}
                 onWikilinkClick={onWikilinkClick}
                 onInternalLinkClick={onInternalLinkClick}
+                onFolderClick={onFolderClick}
                 onAnchorClick={handleAnchorClick}
                 fileDir={fileDir}
               />
@@ -93,7 +95,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
     } catch {
       return <p className="text-destructive">Failed to render markdown.</p>;
     }
-  }, [file?.content, resolvedLinks, repoFullName, fileDir, onWikilinkClick, onInternalLinkClick, handleAnchorClick]);
+  }, [file?.content, resolvedLinks, repoFullName, fileDir, onWikilinkClick, onInternalLinkClick, onFolderClick, handleAnchorClick]);
 
   if (loading) {
     return (

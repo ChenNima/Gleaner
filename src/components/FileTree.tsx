@@ -96,7 +96,10 @@ function TreeNodeItem({
 
   // Highlight + scroll into view when this is the focus target
   useEffect(() => {
-    if (!isFocusTarget) return;
+    if (!isFocusTarget) {
+      setHighlighted(false);
+      return;
+    }
     setHighlighted(true);
     btnRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     const timer = setTimeout(() => setHighlighted(false), 3000);

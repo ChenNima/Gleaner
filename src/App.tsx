@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { TooltipProvider } from './components/ui/tooltip';
 import { Layout } from './components/Layout';
 import { RightPanel } from './components/RightPanel';
 import { useAppStore } from './stores/app';
@@ -18,6 +19,7 @@ function FilePageWithPanel() {
 
 function App() {
   return (
+    <TooltipProvider delayDuration={300}>
     <BrowserRouter>
       <Routes>
         <Route
@@ -41,6 +43,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </TooltipProvider>
   );
 }
 
