@@ -280,7 +280,7 @@ export default function SettingsPage() {
   const repos = useAppStore((s) => s.repos);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-dvh">
       {/* Navbar */}
       <header className="flex items-center justify-between h-11 px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-2">

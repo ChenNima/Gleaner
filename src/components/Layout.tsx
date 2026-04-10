@@ -127,7 +127,7 @@ export function Layout({
   rightWidthRef.current = rightWidth;
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-dvh">
       {/* Top navbar */}
       <header className="flex items-center justify-between h-11 px-2 md:px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-1.5 md:gap-2">

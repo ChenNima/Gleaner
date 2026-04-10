@@ -109,7 +109,7 @@ export default function OnboardPage() {
     (selectedOption === 'github' && githubConfigRepo.trim());
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-dvh bg-background">
       {/* Minimal header */}
       <header className="flex items-center justify-between h-11 px-3 border-b shrink-0">
         <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
