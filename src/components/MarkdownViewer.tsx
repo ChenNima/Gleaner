@@ -9,6 +9,8 @@ import rehypeStringify from 'rehype-stringify';
 import type { MdFile } from '../db';
 import { Loader2 } from 'lucide-react';
 import { getAuthHeaders } from '../lib/auth';
+import { useThemeStore } from '../stores/theme';
+import { cn } from '../lib/utils';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
@@ -35,6 +37,7 @@ const imageCache = new Map<string, string>();
 
 export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, repoFullName }: MarkdownViewerProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const markdownTheme = useThemeStore((s) => s.markdownTheme);
   const html = useMemo(() => {
     if (!file?.content) return '';
 
@@ -99,7 +102,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
         // Leave broken image
       }
     });
-  }, [html, file, repoFullName]);
+  }, [html, file, repoFullName, markdownTheme]);
 
   const handleClick = (e: React.MouseEvent) => {
     // Wikilinks
@@ -180,7 +183,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
   return (
     <div
       ref={contentRef}
-      className="prose prose-sm dark:prose-invert max-w-none px-8 py-6"
+      className={cn('prose prose-sm dark:prose-invert max-w-none px-8 py-6', `md-theme-${markdownTheme}`)}
       onClick={handleClick}
       dangerouslySetInnerHTML={{ __html: html }}
     />

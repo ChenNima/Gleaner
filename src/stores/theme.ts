@@ -1,65 +1,57 @@
 import { create } from 'zustand';
-import { applyCodeTheme, DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME } from '../lib/code-themes';
+import { applyCodeTheme } from '../lib/code-themes';
+import { getMarkdownTheme, DEFAULT_MARKDOWN_THEME } from '../lib/markdown-themes';
 
 type Theme = 'light' | 'dark';
 
 interface ThemeState {
   theme: Theme;
-  codeThemeLight: string;
-  codeThemeDark: string;
+  markdownTheme: string;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
-  setCodeThemeLight: (id: string) => void;
-  setCodeThemeDark: (id: string) => void;
+  setMarkdownTheme: (id: string) => void;
 }
 
-function activeCodeTheme(theme: Theme, light: string, dark: string): string {
-  return theme === 'dark' ? dark : light;
+function applyCodeThemeForMarkdown(appTheme: Theme, markdownThemeId: string) {
+  const mt = getMarkdownTheme(markdownThemeId);
+  applyCodeTheme(appTheme === 'dark' ? mt.codeThemeDark : mt.codeThemeLight);
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => {
   const stored = localStorage.getItem('gleaner-theme') as Theme | null;
   const initial: Theme = stored ?? 'light';
-  const initialCodeLight = localStorage.getItem('gleaner-code-theme-light') ?? DEFAULT_LIGHT_THEME;
-  const initialCodeDark = localStorage.getItem('gleaner-code-theme-dark') ?? DEFAULT_DARK_THEME;
+  const initialMdTheme = localStorage.getItem('gleaner-markdown-theme') ?? DEFAULT_MARKDOWN_THEME;
 
   if (initial === 'dark') {
     document.documentElement.classList.add('dark');
   }
 
   // Apply initial code theme
-  applyCodeTheme(activeCodeTheme(initial, initialCodeLight, initialCodeDark));
+  applyCodeThemeForMarkdown(initial, initialMdTheme);
 
   return {
     theme: initial,
-    codeThemeLight: initialCodeLight,
-    codeThemeDark: initialCodeDark,
+    markdownTheme: initialMdTheme,
     toggleTheme: () =>
       set((state) => {
         const next = state.theme === 'light' ? 'dark' : 'light';
         document.documentElement.classList.toggle('dark', next === 'dark');
         localStorage.setItem('gleaner-theme', next);
-        applyCodeTheme(activeCodeTheme(next, state.codeThemeLight, state.codeThemeDark));
+        applyCodeThemeForMarkdown(next, state.markdownTheme);
         return { theme: next };
       }),
     setTheme: (theme) =>
       set((state) => {
         document.documentElement.classList.toggle('dark', theme === 'dark');
         localStorage.setItem('gleaner-theme', theme);
-        applyCodeTheme(activeCodeTheme(theme, state.codeThemeLight, state.codeThemeDark));
+        applyCodeThemeForMarkdown(theme, state.markdownTheme);
         return { theme };
       }),
-    setCodeThemeLight: (id) => {
-      localStorage.setItem('gleaner-code-theme-light', id);
-      set({ codeThemeLight: id });
-      const { theme, codeThemeDark } = get();
-      applyCodeTheme(activeCodeTheme(theme, id, codeThemeDark));
-    },
-    setCodeThemeDark: (id) => {
-      localStorage.setItem('gleaner-code-theme-dark', id);
-      set({ codeThemeDark: id });
-      const { theme, codeThemeLight } = get();
-      applyCodeTheme(activeCodeTheme(theme, codeThemeLight, id));
+    setMarkdownTheme: (id) => {
+      localStorage.setItem('gleaner-markdown-theme', id);
+      set({ markdownTheme: id });
+      const { theme } = get();
+      applyCodeThemeForMarkdown(theme, id);
     },
   };
 });

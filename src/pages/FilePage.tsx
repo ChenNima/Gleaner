@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronRightIcon } from 'lucide-react';
-import { CodeThemePicker } from '../components/CodeThemePicker';
+import { DocumentThemePicker } from '../components/DocumentThemePicker';
 import { db } from '../db';
 import type { MdFile } from '../db';
 import { getFileContent } from '../lib/github';
@@ -135,7 +135,7 @@ export default function FilePage() {
           })}
         </div>
         <div className="ml-auto">
-          <CodeThemePicker />
+          <DocumentThemePicker />
         </div>
       </div>
       <div className="flex-1 overflow-auto">

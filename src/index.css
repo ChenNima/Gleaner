@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@import "./styles/markdown-themes.css";
 
 /* All buttons and clickable labels get pointer cursor */
 button, [role="button"], label[class*="cursor-pointer"], a { cursor: pointer; }
@@ -137,6 +138,15 @@ button, [role="button"], label[class*="cursor-pointer"], a { cursor: pointer; }
   .wikilink[data-resolved="false"] {
     color: hsl(var(--muted-foreground));
     text-decoration-style: dashed;
+  }
+
+  /* Let highlight.js theme control code block appearance */
+  .prose pre {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .prose pre code.hljs {
+    border-radius: 0.375rem;
   }
 
   /* Inline code styling (not in pre blocks) */
