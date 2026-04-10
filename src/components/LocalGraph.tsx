@@ -70,8 +70,16 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
       neighborIds.add(fileId);
       const graphLinks: GraphLink[] = [];
 
+      const externalNodes: GraphNode[] = [];
       for (const link of outgoing) {
-        if (link.targetFileId) {
+        if (link.isExternal && link.targetUrl) {
+          const extId = `external::${link.targetUrl}`;
+          externalNodes.push({
+            id: extId, name: link.targetTitle, repoFullName: '',
+            degree: 0, isExternal: true, url: link.targetUrl,
+          });
+          graphLinks.push({ source: fileId, target: extId });
+        } else if (link.targetFileId) {
           neighborIds.add(link.targetFileId);
           graphLinks.push({ source: fileId, target: link.targetFileId });
         }
@@ -81,7 +89,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
         graphLinks.push({ source: link.sourceFileId, target: fileId });
       }
 
-      const nodes: GraphNode[] = [];
+      const nodes: GraphNode[] = [...externalNodes];
       for (const id of neighborIds) {
         const file = await db.files.get(id);
         if (file) {
@@ -101,6 +109,10 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
 
   const handleNodeClick = useCallback(
     (node: any) => {
+      if (node.isExternal && node.url) {
+        window.open(node.url, '_blank', 'noopener');
+        return;
+      }
       const route = nodeToRoute(node.id as string);
       if (route) navigate(route);
     },

@@ -6,6 +6,7 @@ import { useThemeStore } from '../stores/theme';
 import {
   type GraphData, type RenderContext,
   CANVAS_BG_DARK, CANVAS_BG_LIGHT, REPO_COLORS_LIGHT, REPO_COLORS_DARK,
+  EXTERNAL_COLOR_LIGHT, EXTERNAL_COLOR_DARK,
   nodeDisplayName, nodeToRoute, dedupeLinks, buildNeighborMap,
   renderNode, paintPointerArea, linkColor, linkWidth,
 } from '../lib/graph-utils';
@@ -53,7 +54,16 @@ export default function GraphPage() {
 
       const graphLinks = [];
       for (const link of links) {
-        if (link.targetFileId && nodeMap.has(link.sourceFileId) && nodeMap.has(link.targetFileId)) {
+        if (link.isExternal && link.targetUrl && nodeMap.has(link.sourceFileId)) {
+          const extId = `external::${link.targetUrl}`;
+          if (!nodeMap.has(extId)) {
+            nodeMap.set(extId, {
+              id: extId, name: link.targetTitle, repoFullName: '',
+              degree: 0, isExternal: true, url: link.targetUrl,
+            });
+          }
+          graphLinks.push({ source: link.sourceFileId, target: extId });
+        } else if (link.targetFileId && nodeMap.has(link.sourceFileId) && nodeMap.has(link.targetFileId)) {
           graphLinks.push({ source: link.sourceFileId, target: link.targetFileId });
         }
       }
@@ -105,6 +115,10 @@ export default function GraphPage() {
 
   const handleNodeClick = useCallback(
     (node: any) => {
+      if (node.isExternal && node.url) {
+        window.open(node.url, '_blank', 'noopener');
+        return;
+      }
       const route = nodeToRoute(node.id as string);
       if (route) navigate(route);
     },
@@ -136,6 +150,10 @@ export default function GraphPage() {
               <span className="text-muted-foreground">{repo.split('/')[1]}</span>
             </div>
           ))}
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rotate-45" style={{ backgroundColor: isDark ? EXTERNAL_COLOR_DARK : EXTERNAL_COLOR_LIGHT }} />
+            <span className="text-muted-foreground">External</span>
+          </div>
         </div>
       </div>
 

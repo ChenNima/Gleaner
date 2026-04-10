@@ -29,16 +29,21 @@ export async function hydrateStoreFromDB(): Promise<void> {
   }
 
   // Check if links need re-parsing (e.g. parser was updated)
+  const PARSER_VERSION = '2'; // bump this when parser changes
   const allFiles = await db.files.toArray();
   const filesWithContent = allFiles.filter((f) => f.content !== null);
   const linkCount = await db.links.count();
+  const storedVersion = await db.config.get('parser-version');
+  const needsReparse = (filesWithContent.length > 0 && linkCount === 0)
+    || (storedVersion?.value !== PARSER_VERSION && filesWithContent.length > 0);
 
-  if (filesWithContent.length > 0 && linkCount === 0) {
-    // Files exist with content but no links — re-parse all
+  if (needsReparse) {
+    await db.links.clear();
     for (const file of filesWithContent) {
       await parseAndStoreLinks(file);
     }
     await resolveAllLinks();
+    await db.config.put({ key: 'parser-version', value: PARSER_VERSION });
   }
 }
 

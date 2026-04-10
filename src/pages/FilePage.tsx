@@ -77,6 +77,7 @@ export default function FilePage() {
       loading={loading}
       resolvedLinks={resolvedLinks}
       onWikilinkClick={handleWikilinkClick}
+      repoFullName={repoFullName}
     />
   );
 }

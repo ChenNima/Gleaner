@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
 import type { MdFile } from '../db';
 import { Loader2 } from 'lucide-react';
+import { getAuthHeaders } from '../lib/auth';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
@@ -15,6 +17,7 @@ interface MarkdownViewerProps {
   loading?: boolean;
   resolvedLinks?: Map<string, boolean>; // targetTitle -> resolved
   onWikilinkClick?: (target: string) => void;
+  repoFullName?: string;
 }
 
 function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolean>): string {
@@ -26,7 +29,11 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
   });
 }
 
-export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick }: MarkdownViewerProps) {
+// Module-level cache: repo::path → blob URL (persists across re-renders, cleared on page reload)
+const imageCache = new Map<string, string>();
+
+export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, repoFullName }: MarkdownViewerProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
   const html = useMemo(() => {
     if (!file?.content) return '';
 
@@ -37,6 +44,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick }
         .use(remarkParse)
         .use(remarkGfm)
         .use(remarkRehype, { allowDangerousHtml: true })
+        .use(rehypeSlug)
         .use(rehypeHighlight, { detect: true, ignoreMissing: true })
         .use(rehypeStringify, { allowDangerousHtml: true })
         .processSync(preprocessed);
@@ -47,14 +55,86 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick }
     }
   }, [file?.content, resolvedLinks]);
 
+  // Resolve relative image paths to GitHub raw content URLs
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !file || !repoFullName) return;
+    const fileDir = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
+
+    const imgs = el.querySelectorAll('img[src]');
+    imgs.forEach(async (img) => {
+      const src = img.getAttribute('src');
+      if (!src || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('blob:')) return;
+
+      // Resolve relative path
+      const parts = (fileDir ? fileDir + '/' + src : src).split('/');
+      const resolved: string[] = [];
+      for (const part of parts) {
+        if (part === '.' || part === '') continue;
+        if (part === '..') { resolved.pop(); continue; }
+        resolved.push(part);
+      }
+      const fullPath = resolved.join('/');
+      const cacheKey = `${repoFullName}::${fullPath}`;
+
+      // Check cache first
+      const cached = imageCache.get(cacheKey);
+      if (cached) { img.setAttribute('src', cached); return; }
+
+      // Fetch via GitHub API with auth
+      const [owner, repo] = repoFullName.split('/');
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${fullPath}`;
+      try {
+        const headers = await getAuthHeaders();
+        const resp = await fetch(apiUrl, {
+          headers: { ...headers, Accept: 'application/vnd.github.raw' },
+        });
+        if (!resp.ok) return;
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        imageCache.set(cacheKey, blobUrl);
+        img.setAttribute('src', blobUrl);
+      } catch {
+        // Leave broken image
+      }
+    });
+  }, [html, file, repoFullName]);
+
   const handleClick = (e: React.MouseEvent) => {
-    const target = (e.target as HTMLElement).closest('[data-wikilink]');
-    if (target) {
+    // Wikilinks
+    const wikilink = (e.target as HTMLElement).closest('[data-wikilink]');
+    if (wikilink) {
       e.preventDefault();
       const wikilinkTarget = decodeURIComponent(
-        target.getAttribute('data-wikilink') ?? ''
+        wikilink.getAttribute('data-wikilink') ?? ''
       );
       onWikilinkClick?.(wikilinkTarget);
+      return;
+    }
+
+    // Regular <a> clicks
+    const anchor = (e.target as HTMLElement).closest('a[href]');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+
+    // Anchor links (#section) — scroll to element
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      const id = decodeURIComponent(href.slice(1));
+      const el = contentRef.current?.querySelector(`[id="${CSS.escape(id)}"]`)
+        ?? contentRef.current?.querySelector(`[id="${CSS.escape(id.toLowerCase())}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    // External links — let browser handle normally
+    if (href.startsWith('http://') || href.startsWith('https://')) return;
+
+    // Internal .md links — navigate via router
+    if (href.endsWith('.md') || href.includes('.md#')) {
+      // Handled by default browser navigation (relative URL resolves to correct route)
+      return;
     }
   };
 
@@ -85,6 +165,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick }
 
   return (
     <div
+      ref={contentRef}
       className="prose prose-sm dark:prose-invert max-w-none px-8 py-6"
       onClick={handleClick}
       dangerouslySetInnerHTML={{ __html: html }}

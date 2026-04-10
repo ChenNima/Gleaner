@@ -8,7 +8,12 @@ export interface GraphNode {
   repoFullName: string;
   degree: number;
   isCurrent?: boolean;
+  isExternal?: boolean;
+  url?: string;
 }
+
+export const EXTERNAL_COLOR_LIGHT = '#d97706';
+export const EXTERNAL_COLOR_DARK = '#fbbf24';
 
 export interface GraphLink {
   source: string;
@@ -106,8 +111,11 @@ export function renderNode(
   const y = node.y as number;
   const isCurrent = node.isCurrent as boolean;
   const isHover = node.id === rc.hoverNode;
-  const color = rc.repoColors.get(node.repoFullName as string)
-    ?? (isCurrent ? (rc.isDark ? '#38bdf8' : '#0ea5e9') : (rc.isDark ? '#64748b' : '#94a3b8'));
+  const isExt = node.isExternal as boolean;
+  const color = isExt
+    ? (rc.isDark ? EXTERNAL_COLOR_DARK : EXTERNAL_COLOR_LIGHT)
+    : rc.repoColors.get(node.repoFullName as string)
+      ?? (isCurrent ? (rc.isDark ? '#38bdf8' : '#0ea5e9') : (rc.isDark ? '#64748b' : '#94a3b8'));
 
   const compact = rc.compact ?? false;
   const nodeR = compact ? 1.5 : 3;
@@ -147,14 +155,22 @@ export function renderNode(
     }
   }
 
-  // Dot
+  // Dot (circle for files, diamond for external)
+  const fillColor = dimmed
+    ? (rc.isDark ? 'rgba(100,116,139,0.15)' : 'rgba(148,163,184,0.2)')
+    : (isHover ? color : color + (rc.hoverNode && lit ? 'ee' : 'aa'));
   ctx.beginPath();
-  ctx.arc(x, y, r, 0, 2 * Math.PI, false);
-  if (dimmed) {
-    ctx.fillStyle = rc.isDark ? 'rgba(100,116,139,0.15)' : 'rgba(148,163,184,0.2)';
+  if (isExt) {
+    // Diamond shape
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y);
+    ctx.lineTo(x, y + r);
+    ctx.lineTo(x - r, y);
+    ctx.closePath();
   } else {
-    ctx.fillStyle = isHover ? color : color + (rc.hoverNode && lit ? 'ee' : 'aa');
+    ctx.arc(x, y, r, 0, 2 * Math.PI, false);
   }
+  ctx.fillStyle = fillColor;
   ctx.fill();
 
   // Label — always short filename only, full name via tooltip

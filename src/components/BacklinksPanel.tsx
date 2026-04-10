@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { getBacklinks, getOutgoingLinks } from '../lib/wikilink-parser';
+import { FileText, ArrowDownLeft, ArrowUpRight, Globe } from 'lucide-react';
+import { getBacklinks, getOutgoingLinks, getExternalLinks } from '../lib/wikilink-parser';
 import type { MdFile } from '../db';
 
 interface BacklinksPanelProps {
@@ -18,19 +18,27 @@ interface OutgoingEntry {
   title: string;
 }
 
+interface ExternalEntry {
+  title: string;
+  url: string;
+}
+
 export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
   const [backlinks, setBacklinks] = useState<BacklinkEntry[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingEntry[]>([]);
+  const [external, setExternal] = useState<ExternalEntry[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!fileId) {
       setBacklinks([]);
       setOutgoing([]);
+      setExternal([]);
       return;
     }
     getBacklinks(fileId).then(setBacklinks);
     getOutgoingLinks(fileId).then(setOutgoing);
+    getExternalLinks(fileId).then(setExternal);
   }, [fileId]);
 
   if (!fileId) {
@@ -95,6 +103,30 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
           </div>
         )}
       </div>
+
+      {/* External links */}
+      {external.length > 0 && (
+        <div>
+          <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <Globe className="h-3 w-3" />
+            External links ({external.length})
+          </h3>
+          <div className="space-y-1">
+            {external.map((el) => (
+              <a
+                key={el.url}
+                href={el.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 w-full text-left px-2 py-1 rounded hover:bg-accent text-xs"
+              >
+                <Globe className="h-3 w-3 shrink-0 text-amber-500" />
+                <span className="truncate">{el.title}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { WikiLink, MdFile } from '../db';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
 const MD_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g;
+const EXTERNAL_LINK_REGEX = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 
 /**
  * Extract wikilink targets from markdown content
@@ -56,6 +57,28 @@ function resolveRelativePath(sourcePath: string, href: string): string | null {
 }
 
 /**
+ * Extract external links: [text](https://...)
+ */
+export function extractExternalLinks(content: string): { title: string; url: string }[] {
+  const results: { title: string; url: string }[] = [];
+  const seen = new Set<string>();
+  const re = new RegExp(EXTERNAL_LINK_REGEX.source, EXTERNAL_LINK_REGEX.flags);
+  let match;
+  while ((match = re.exec(content)) !== null) {
+    const url = match[2];
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const title = match[1].trim() || domainFromUrl(url);
+    results.push({ title, url });
+  }
+  return results;
+}
+
+function domainFromUrl(url: string): string {
+  try { return new URL(url).hostname; } catch { return url; }
+}
+
+/**
  * Parse wikilinks and standard markdown links from a file and write to the links table
  */
 export async function parseAndStoreLinks(file: MdFile): Promise<void> {
@@ -78,6 +101,18 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
     const targetFileId = `${file.repoFullName}::${targetPath}`;
     const title = targetPath.split('/').pop()?.replace(/\.md$/i, '') ?? targetPath;
     links.push({ sourceFileId: file.id, targetTitle: title, targetFileId: targetFileId });
+  }
+
+  // Extract external links
+  const extLinks = extractExternalLinks(file.content);
+  for (const ext of extLinks) {
+    links.push({
+      sourceFileId: file.id,
+      targetTitle: ext.title,
+      targetFileId: null,
+      isExternal: true,
+      targetUrl: ext.url,
+    });
   }
 
   if (links.length === 0) return;
@@ -106,6 +141,9 @@ export async function resolveAllLinks(): Promise<void> {
   const allLinks = await db.links.toArray();
 
   for (const link of allLinks) {
+    // Skip external links — they don't resolve to files
+    if (link.isExternal) continue;
+
     // If targetFileId is already set (from standard markdown links), verify it exists
     if (link.targetFileId) {
       if (!fileIdSet.has(link.targetFileId)) {
@@ -131,6 +169,16 @@ export async function resolveAllLinks(): Promise<void> {
       await db.links.update(link.id!, { targetFileId: resolved.id });
     }
   }
+}
+
+/**
+ * Get external links from a file
+ */
+export async function getExternalLinks(fileId: string): Promise<{ title: string; url: string }[]> {
+  const links = await db.links.where('sourceFileId').equals(fileId).toArray();
+  return links
+    .filter((l) => l.isExternal && l.targetUrl)
+    .map((l) => ({ title: l.targetTitle, url: l.targetUrl! }));
 }
 
 /**

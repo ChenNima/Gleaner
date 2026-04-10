@@ -32,6 +32,8 @@ export interface WikiLink {
   sourceFileId: string;
   targetTitle: string;
   targetFileId: string | null;
+  isExternal?: boolean;
+  targetUrl?: string | null;
 }
 
 class GleanerDB extends Dexie {
@@ -47,6 +49,12 @@ class GleanerDB extends Dexie {
       repos: '&fullName, label',
       files: '&id, repoFullName, path, sha',
       links: '++id, sourceFileId, targetTitle, targetFileId',
+    });
+    this.version(2).stores({
+      config: '&key',
+      repos: '&fullName, label',
+      files: '&id, repoFullName, path, sha',
+      links: '++id, sourceFileId, targetTitle, targetFileId, isExternal',
     });
   }
 }
