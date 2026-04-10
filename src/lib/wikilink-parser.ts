@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db, getActiveRepoNames } from '../db';
 import type { WikiLink, MdFile } from '../db';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
@@ -182,13 +182,16 @@ export async function getExternalLinks(fileId: string): Promise<{ title: string;
 }
 
 /**
- * Get backlinks for a file
+ * Get backlinks for a file (filtered to active profile's repos)
  */
 export async function getBacklinks(fileId: string): Promise<{ source: MdFile; context: string }[]> {
+  const activeRepos = await getActiveRepoNames();
   const links = await db.links.where('targetFileId').equals(fileId).toArray();
 
   const results: { source: MdFile; context: string }[] = [];
   for (const link of links) {
+    const sourceRepo = link.sourceFileId.split('::')[0];
+    if (!activeRepos.has(sourceRepo)) continue;
     const source = await db.files.get(link.sourceFileId);
     if (source) {
       results.push({
@@ -202,15 +205,18 @@ export async function getBacklinks(fileId: string): Promise<{ source: MdFile; co
 }
 
 /**
- * Get outgoing links for a file (files that the current file links to)
+ * Get outgoing links for a file (filtered to active profile's repos)
  */
 export async function getOutgoingLinks(fileId: string): Promise<{ target: MdFile; title: string }[]> {
+  const activeRepos = await getActiveRepoNames();
   const links = await db.links.where('sourceFileId').equals(fileId).toArray();
 
   const seen = new Set<string>();
   const results: { target: MdFile; title: string }[] = [];
   for (const link of links) {
     if (!link.targetFileId || seen.has(link.targetFileId)) continue;
+    const targetRepo = link.targetFileId.split('::')[0];
+    if (!activeRepos.has(targetRepo)) continue;
     seen.add(link.targetFileId);
     const target = await db.files.get(link.targetFileId);
     if (target) {

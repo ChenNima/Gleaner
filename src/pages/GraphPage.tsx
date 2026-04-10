@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import ForceGraph2D from 'react-force-graph-2d';
-import { db } from '../db';
+import { getActiveFiles, getActiveLinks } from '../db';
 import { useThemeStore } from '../stores/theme';
 import {
   type GraphData, type RenderContext,
@@ -27,8 +27,8 @@ export default function GraphPage() {
 
   useEffect(() => {
     (async () => {
-      const files = await db.files.toArray();
-      const links = await db.links.toArray();
+      const files = await getActiveFiles();
+      const links = await getActiveLinks();
 
       const palette = isDark ? REPO_COLORS_DARK : REPO_COLORS_LIGHT;
       const repos = [...new Set(files.map((f) => f.repoFullName))];

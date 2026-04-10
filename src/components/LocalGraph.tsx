@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ForceGraph2D from 'react-force-graph-2d';
-import { db } from '../db';
+import { db, getActiveRepoNames } from '../db';
 import { useThemeStore } from '../stores/theme';
 import {
   type GraphNode, type GraphLink, type RenderContext,
@@ -63,6 +63,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
     if (!fileId) { setData({ nodes: [], links: [] }); return; }
 
     (async () => {
+      const activeRepos = await getActiveRepoNames();
       const outgoing = await db.links.where('sourceFileId').equals(fileId).toArray();
       const incoming = await db.links.where('targetFileId').equals(fileId).toArray();
 
@@ -80,13 +81,21 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
           });
           graphLinks.push({ source: fileId, target: extId });
         } else if (link.targetFileId) {
-          neighborIds.add(link.targetFileId);
-          graphLinks.push({ source: fileId, target: link.targetFileId });
+          // Only include if target belongs to active profile's repos
+          const targetRepo = link.targetFileId.split('::')[0];
+          if (activeRepos.has(targetRepo)) {
+            neighborIds.add(link.targetFileId);
+            graphLinks.push({ source: fileId, target: link.targetFileId });
+          }
         }
       }
       for (const link of incoming) {
-        neighborIds.add(link.sourceFileId);
-        graphLinks.push({ source: link.sourceFileId, target: fileId });
+        // Only include if source belongs to active profile's repos
+        const sourceRepo = link.sourceFileId.split('::')[0];
+        if (activeRepos.has(sourceRepo)) {
+          neighborIds.add(link.sourceFileId);
+          graphLinks.push({ source: link.sourceFileId, target: fileId });
+        }
       }
 
       const nodes: GraphNode[] = [...externalNodes];

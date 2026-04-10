@@ -78,3 +78,23 @@ class GleanerDB extends Dexie {
 }
 
 export const db = new GleanerDB();
+
+/** Get file IDs that belong to currently active repos */
+export async function getActiveRepoNames(): Promise<Set<string>> {
+  const repos = await db.repos.toArray();
+  return new Set(repos.map((r) => r.fullName));
+}
+
+/** Get files belonging to currently active repos only */
+export async function getActiveFiles(): Promise<MdFile[]> {
+  const activeRepos = await getActiveRepoNames();
+  const files = await db.files.toArray();
+  return files.filter((f) => activeRepos.has(f.repoFullName));
+}
+
+/** Get links where source file belongs to active repos */
+export async function getActiveLinks(): Promise<WikiLink[]> {
+  const activeRepos = await getActiveRepoNames();
+  const links = await db.links.toArray();
+  return links.filter((l) => activeRepos.has(l.sourceFileId.split('::')[0]));
+}
