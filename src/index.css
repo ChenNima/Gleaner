@@ -107,6 +107,21 @@
     margin: 0;
   }
 
+  /* Override typography prose colors to use theme foreground */
+  .prose {
+    --tw-prose-body: hsl(var(--foreground)) !important;
+    --tw-prose-headings: hsl(var(--foreground)) !important;
+    --tw-prose-links: hsl(var(--primary)) !important;
+    --tw-prose-bold: hsl(var(--foreground)) !important;
+    --tw-prose-code: hsl(var(--foreground)) !important;
+    --tw-prose-counters: hsl(var(--muted-foreground)) !important;
+    --tw-prose-bullets: hsl(var(--muted-foreground)) !important;
+    --tw-prose-quotes: hsl(var(--foreground)) !important;
+    --tw-prose-th-borders: hsl(var(--border)) !important;
+    --tw-prose-td-borders: hsl(var(--border)) !important;
+    color: hsl(var(--foreground));
+  }
+
   .wikilink {
     color: hsl(var(--primary));
     text-decoration: underline;
@@ -119,5 +134,47 @@
   .wikilink[data-resolved="false"] {
     color: hsl(var(--muted-foreground));
     text-decoration-style: dashed;
+  }
+
+  /* Code block theming - light mode */
+  .prose pre {
+    background-color: hsl(var(--secondary)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+  .prose pre code {
+    color: inherit !important;
+  }
+  .prose :not(pre) > code {
+    background-color: hsl(var(--secondary));
+    padding: 0.15em 0.35em;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+  }
+
+  /* highlight.js token colors - light mode */
+  .hljs-keyword, .hljs-selector-tag { color: #8250df; }
+  .hljs-string, .hljs-attr { color: #0a3069; }
+  .hljs-comment, .hljs-quote { color: #6e7781; font-style: italic; }
+  .hljs-number, .hljs-literal { color: #0550ae; }
+  .hljs-title, .hljs-section { color: #953800; }
+  .hljs-built_in, .hljs-type { color: #8250df; }
+  .hljs-name, .hljs-tag { color: #116329; }
+  .hljs-addition { color: #1a7f37; background-color: #dafbe1; }
+  .hljs-deletion { color: #cf222e; background-color: #ffebe9; }
+
+  /* highlight.js token colors - dark mode */
+  .dark .hljs-keyword, .dark .hljs-selector-tag { color: #ff7b72; }
+  .dark .hljs-string, .dark .hljs-attr { color: #a5d6ff; }
+  .dark .hljs-comment, .dark .hljs-quote { color: #8b949e; font-style: italic; }
+  .dark .hljs-number, .dark .hljs-literal { color: #79c0ff; }
+  .dark .hljs-title, .dark .hljs-section { color: #d2a8ff; }
+  .dark .hljs-built_in, .dark .hljs-type { color: #ffa657; }
+  .dark .hljs-name, .dark .hljs-tag { color: #7ee787; }
+  .dark .hljs-addition { color: #aff5b4; background-color: #033a16; }
+  .dark .hljs-deletion { color: #ffdcd7; background-color: #67060c; }
+
+  .dark .prose pre {
+    background-color: hsl(240 6% 10%) !important;
+    color: hsl(0 0% 90%) !important;
   }
 }

@@ -8,6 +8,7 @@ import { useAppStore } from '../stores/app';
 import { useThemeStore } from '../stores/theme';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { db } from '../db';
+import { resetHydration } from '../lib/hydrate';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -73,7 +74,19 @@ export default function SettingsPage() {
     await db.links.clear();
     await db.repos.toCollection().modify({ treeSha: null, cachedFiles: 0, syncStatus: 'idle' });
     useAppStore.getState().setRepos(await db.repos.toArray());
-    setSuccess('Cache cleared. Repos will re-sync on next refresh.');
+    useAppStore.getState().clearFileTree();
+    setSuccess('Cache cleared. Repos will re-sync on next Save & Sync.');
+  };
+
+  const handleResetAll = async () => {
+    await db.delete();
+    await db.open();
+    resetHydration();
+    useAppStore.getState().setRepos([]);
+    useAppStore.getState().clearFileTree();
+    setConfigRepoUrl('');
+    setPatValue('');
+    setSuccess('All data reset.');
   };
 
   return (
@@ -149,7 +162,7 @@ export default function SettingsPage() {
           )}
 
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSave}
               disabled={saving}
@@ -169,6 +182,14 @@ export default function SettingsPage() {
             >
               <Trash2 className="h-4 w-4" />
               Clear Cache
+            </button>
+
+            <button
+              onClick={handleResetAll}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-destructive text-destructive rounded-md hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Reset All Data
             </button>
           </div>
         </div>

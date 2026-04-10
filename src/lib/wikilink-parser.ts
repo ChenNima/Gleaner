@@ -2,6 +2,7 @@ import { db } from '../db';
 import type { WikiLink, MdFile } from '../db';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+const MD_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g;
 
 /**
  * Extract wikilink targets from markdown content
@@ -9,31 +10,77 @@ const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
 export function extractWikilinks(content: string): string[] {
   const targets: string[] = [];
   let match;
-  while ((match = WIKILINK_REGEX.exec(content)) !== null) {
+  const re = new RegExp(WIKILINK_REGEX.source, WIKILINK_REGEX.flags);
+  while ((match = re.exec(content)) !== null) {
     targets.push(match[1].trim());
   }
   return targets;
 }
 
 /**
- * Parse wikilinks from a file and write to the links table
+ * Extract standard markdown links to .md files: [text](path.md)
+ * Returns resolved paths relative to repo root.
+ */
+export function extractMarkdownLinks(content: string, sourcePath: string): string[] {
+  const targets: string[] = [];
+  const re = new RegExp(MD_LINK_REGEX.source, MD_LINK_REGEX.flags);
+  let match;
+  while ((match = re.exec(content)) !== null) {
+    const href = match[2].split('#')[0]; // strip anchor
+    if (!href || href.startsWith('http://') || href.startsWith('https://')) continue;
+    const resolved = resolveRelativePath(sourcePath, href);
+    if (resolved) targets.push(resolved);
+  }
+  return [...new Set(targets)]; // dedupe
+}
+
+/**
+ * Resolve a relative path from a source file to an absolute repo path.
+ * e.g. sourcePath="docs/ARCHITECTURE.md", href="./SEARCH.md" → "docs/SEARCH.md"
+ *      sourcePath="README.md", href="docs/ARCHITECTURE.md" → "docs/ARCHITECTURE.md"
+ */
+function resolveRelativePath(sourcePath: string, href: string): string | null {
+  const sourceDir = sourcePath.includes('/') ? sourcePath.substring(0, sourcePath.lastIndexOf('/')) : '';
+  const parts = (sourceDir ? sourceDir + '/' + href : href).split('/');
+  const resolved: string[] = [];
+  for (const part of parts) {
+    if (part === '.' || part === '') continue;
+    if (part === '..') {
+      if (resolved.length === 0) return null; // invalid path
+      resolved.pop();
+    } else {
+      resolved.push(part);
+    }
+  }
+  return resolved.join('/');
+}
+
+/**
+ * Parse wikilinks and standard markdown links from a file and write to the links table
  */
 export async function parseAndStoreLinks(file: MdFile): Promise<void> {
   if (!file.content) return;
 
-  const targets = extractWikilinks(file.content);
-
   // Remove old links for this file
   await db.links.where('sourceFileId').equals(file.id).delete();
 
-  if (targets.length === 0) return;
+  const links: WikiLink[] = [];
 
-  const links: WikiLink[] = targets.map((targetTitle) => ({
-    sourceFileId: file.id,
-    targetTitle,
-    targetFileId: null, // resolved later
-  }));
+  // Extract wikilinks
+  const wikiTargets = extractWikilinks(file.content);
+  for (const targetTitle of wikiTargets) {
+    links.push({ sourceFileId: file.id, targetTitle, targetFileId: null });
+  }
 
+  // Extract standard markdown links and resolve to file IDs immediately
+  const mdLinkPaths = extractMarkdownLinks(file.content, file.path);
+  for (const targetPath of mdLinkPaths) {
+    const targetFileId = `${file.repoFullName}::${targetPath}`;
+    const title = targetPath.split('/').pop()?.replace(/\.md$/i, '') ?? targetPath;
+    links.push({ sourceFileId: file.id, targetTitle: title, targetFileId: targetFileId });
+  }
+
+  if (links.length === 0) return;
   await db.links.bulkAdd(links);
 }
 
@@ -46,6 +93,7 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
  */
 export async function resolveAllLinks(): Promise<void> {
   const allFiles = await db.files.toArray();
+  const fileIdSet = new Set(allFiles.map((f) => f.id));
   const titleMap = new Map<string, MdFile[]>();
 
   for (const file of allFiles) {
@@ -58,13 +106,19 @@ export async function resolveAllLinks(): Promise<void> {
   const allLinks = await db.links.toArray();
 
   for (const link of allLinks) {
+    // If targetFileId is already set (from standard markdown links), verify it exists
+    if (link.targetFileId) {
+      if (!fileIdSet.has(link.targetFileId)) {
+        await db.links.update(link.id!, { targetFileId: null });
+      }
+      continue;
+    }
+
+    // Resolve by title (for wikilinks)
     const target = link.targetTitle.toLowerCase();
     const candidates = titleMap.get(target);
 
     if (!candidates || candidates.length === 0) {
-      if (link.targetFileId !== null) {
-        await db.links.update(link.id!, { targetFileId: null });
-      }
       continue;
     }
 
@@ -93,6 +147,26 @@ export async function getBacklinks(fileId: string): Promise<{ source: MdFile; co
         source,
         context: source.backlinkContext ?? source.title,
       });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Get outgoing links for a file (files that the current file links to)
+ */
+export async function getOutgoingLinks(fileId: string): Promise<{ target: MdFile; title: string }[]> {
+  const links = await db.links.where('sourceFileId').equals(fileId).toArray();
+
+  const seen = new Set<string>();
+  const results: { target: MdFile; title: string }[] = [];
+  for (const link of links) {
+    if (!link.targetFileId || seen.has(link.targetFileId)) continue;
+    seen.add(link.targetFileId);
+    const target = await db.files.get(link.targetFileId);
+    if (target) {
+      results.push({ target, title: link.targetTitle });
     }
   }
 

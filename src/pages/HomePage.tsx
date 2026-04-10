@@ -8,7 +8,6 @@ import { Loader2 } from 'lucide-react';
 export default function HomePage() {
   const navigate = useNavigate();
   const repos = useAppStore((s) => s.repos);
-  const setRepos = useAppStore((s) => s.setRepos);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,19 +18,18 @@ export default function HomePage() {
         return;
       }
 
+      setLoading(false);
+
+      // Background sync
       try {
         const synced = await syncConfig();
-        setRepos(synced);
-
-        // Start background sync
+        useAppStore.getState().setRepos(synced);
         syncAllRepos((repo) => {
           useAppStore.getState().updateRepo(repo.fullName, repo);
         });
       } catch {
         // Config might be stale, still show what we have
       }
-
-      setLoading(false);
     })();
   }, []);
 

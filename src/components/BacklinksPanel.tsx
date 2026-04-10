@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText } from 'lucide-react';
-import { getBacklinks } from '../lib/wikilink-parser';
+import { FileText, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { getBacklinks, getOutgoingLinks } from '../lib/wikilink-parser';
 import type { MdFile } from '../db';
 
 interface BacklinksPanelProps {
@@ -13,16 +13,24 @@ interface BacklinkEntry {
   context: string;
 }
 
+interface OutgoingEntry {
+  target: MdFile;
+  title: string;
+}
+
 export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
   const [backlinks, setBacklinks] = useState<BacklinkEntry[]>([]);
+  const [outgoing, setOutgoing] = useState<OutgoingEntry[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!fileId) {
       setBacklinks([]);
+      setOutgoing([]);
       return;
     }
     getBacklinks(fileId).then(setBacklinks);
+    getOutgoingLinks(fileId).then(setOutgoing);
   }, [fileId]);
 
   if (!fileId) {
@@ -33,44 +41,59 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
     );
   }
 
-  if (backlinks.length === 0) {
-    return (
-      <div className="p-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          Backlinks
-        </h3>
-        <p className="text-xs text-muted-foreground">No backlinks found</p>
-      </div>
-    );
-  }
+  const navigateToFile = (file: MdFile) => {
+    const [owner, repo] = file.repoFullName.split('/');
+    navigate(`/repo/${owner}/${repo}/${file.path}`);
+  };
 
   return (
-    <div className="p-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-        Backlinks ({backlinks.length})
-      </h3>
-      <div className="space-y-2">
-        {backlinks.map((bl) => {
-          const [owner, repo] = bl.source.repoFullName.split('/');
-          return (
-            <button
-              key={bl.source.id}
-              onClick={() => navigate(`/repo/${owner}/${repo}/${bl.source.path}`)}
-              className="flex flex-col gap-0.5 w-full text-left p-2 rounded hover:bg-accent text-xs"
-            >
-              <div className="flex items-center gap-1 text-foreground font-medium">
-                <FileText className="h-3 w-3 shrink-0" />
+    <div className="p-3 space-y-4">
+      {/* Backlinks (incoming) */}
+      <div>
+        <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <ArrowDownLeft className="h-3 w-3" />
+          Backlinks {backlinks.length > 0 && `(${backlinks.length})`}
+        </h3>
+        {backlinks.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-4">No backlinks</p>
+        ) : (
+          <div className="space-y-1">
+            {backlinks.map((bl) => (
+              <button
+                key={bl.source.id}
+                onClick={() => navigateToFile(bl.source)}
+                className="flex items-center gap-1 w-full text-left px-2 py-1 rounded hover:bg-accent text-xs"
+              >
+                <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <span className="truncate">{bl.source.title}</span>
-              </div>
-              <span className="text-muted-foreground truncate pl-4">
-                {bl.source.repoFullName}
-              </span>
-              <span className="text-muted-foreground line-clamp-2 pl-4">
-                {bl.context}
-              </span>
-            </button>
-          );
-        })}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Outgoing links */}
+      <div>
+        <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          <ArrowUpRight className="h-3 w-3" />
+          Outgoing links {outgoing.length > 0 && `(${outgoing.length})`}
+        </h3>
+        {outgoing.length === 0 ? (
+          <p className="text-xs text-muted-foreground pl-4">No outgoing links</p>
+        ) : (
+          <div className="space-y-1">
+            {outgoing.map((ol) => (
+              <button
+                key={ol.target.id}
+                onClick={() => navigateToFile(ol.target)}
+                className="flex items-center gap-1 w-full text-left px-2 py-1 rounded hover:bg-accent text-xs"
+              >
+                <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="truncate">{ol.target.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

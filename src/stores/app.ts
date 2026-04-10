@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Repo, MdFile } from '../db';
+import { db } from '../db';
 
 interface AppState {
   repos: Repo[];
@@ -8,6 +9,7 @@ interface AppState {
 
   fileTree: Map<string, MdFile[]>; // repoFullName -> files
   setFileTree: (repoFullName: string, files: MdFile[]) => void;
+  clearFileTree: () => void;
 
   currentFileId: string | null;
   setCurrentFileId: (id: string | null) => void;
@@ -17,8 +19,17 @@ interface AppState {
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
 
+  leftSidebarWidth: number;
+  rightSidebarWidth: number;
+  setLeftSidebarWidth: (w: number) => void;
+  setRightSidebarWidth: (w: number) => void;
+
   syncingRepos: Set<string>;
   setSyncing: (fullName: string, syncing: boolean) => void;
+}
+
+function persistWidth(key: string, value: number) {
+  db.config.put({ key, value: String(value) });
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -38,6 +49,7 @@ export const useAppStore = create<AppState>((set) => ({
       next.set(repoFullName, files);
       return { fileTree: next };
     }),
+  clearFileTree: () => set({ fileTree: new Map() }),
 
   currentFileId: null,
   setCurrentFileId: (id) => set({ currentFileId: id }),
@@ -48,6 +60,17 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
   toggleRightSidebar: () =>
     set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
+
+  leftSidebarWidth: 240,
+  rightSidebarWidth: 280,
+  setLeftSidebarWidth: (w) => {
+    set({ leftSidebarWidth: w });
+    persistWidth('left-sidebar-width', w);
+  },
+  setRightSidebarWidth: (w) => {
+    set({ rightSidebarWidth: w });
+    persistWidth('right-sidebar-width', w);
+  },
 
   syncingRepos: new Set(),
   setSyncing: (fullName, syncing) =>

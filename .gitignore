@@ -26,4 +26,7 @@ test-results/
 node_modules/
 dist/
 
+# Gleaner specific
 .chorus
+.playwright-mcp
+.vite/

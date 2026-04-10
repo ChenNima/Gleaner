@@ -25,6 +25,10 @@ async function syncSingleRepo(
   const result = await syncRepoTree(owner, repoName, repo.treeSha);
 
   if (!result.changed) {
+    // Still load cached file tree into store (needed after page refresh)
+    const cachedFiles = await db.files.where('repoFullName').equals(repo.fullName).toArray();
+    useAppStore.getState().setFileTree(repo.fullName, cachedFiles);
+
     await db.repos.update(repo.fullName, { syncStatus: 'done', lastSyncAt: new Date().toISOString() });
     onProgress?.({ ...updatedRepo, syncStatus: 'done', lastSyncAt: new Date().toISOString() });
     return;
