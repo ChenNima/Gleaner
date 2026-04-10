@@ -1,5 +1,6 @@
 import { db } from '../db';
 import type { Repo, MdFile } from '../db';
+import type { RepoConfig } from './config';
 import { syncRepoTree, getFileContent, parseRepoFullName } from './github';
 import { RateLimitError } from './errors';
 import { parseAndStoreLinks, resolveAllLinks } from './wikilink-parser';
@@ -7,12 +8,28 @@ import { useAppStore } from '../stores/app';
 
 type ProgressCallback = (repo: Repo) => void;
 
+function filterByPaths(
+  mdFiles: { path: string; sha: string }[],
+  includePaths?: string[],
+  excludePaths?: string[]
+): { path: string; sha: string }[] {
+  let filtered = mdFiles;
+  if (includePaths && includePaths.length > 0) {
+    filtered = filtered.filter((f) => includePaths.some((p) => f.path.startsWith(p)));
+  }
+  if (excludePaths && excludePaths.length > 0) {
+    filtered = filtered.filter((f) => !excludePaths.some((p) => f.path.startsWith(p)));
+  }
+  return filtered;
+}
+
 /**
  * Sync a single repo: fetch tree, identify .md files, background-cache content
  */
 async function syncSingleRepo(
   repo: Repo,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  config?: RepoConfig
 ): Promise<void> {
   const { owner, repo: repoName } = parseRepoFullName(repo.fullName);
 
@@ -21,8 +38,17 @@ async function syncSingleRepo(
   const updatedRepo = { ...repo, syncStatus: 'syncing' as const, syncError: null };
   onProgress?.(updatedRepo);
 
+  // "pin" sentinel means "auto-lock on next sync" — treat as latest for this sync
+  const effectiveCommit = config?.commit === 'pin' ? undefined : config?.commit;
+
   // Fetch tree and check for changes
-  const result = await syncRepoTree(owner, repoName, repo.treeSha);
+  const result = await syncRepoTree(owner, repoName, repo.treeSha, {
+    branch: config?.branch,
+    commit: effectiveCommit,
+  });
+
+  // Apply path filtering
+  const filteredMdFiles = filterByPaths(result.mdFiles, config?.includePaths, config?.excludePaths);
 
   if (!result.changed) {
     // Still load cached file tree into store (needed after page refresh)
@@ -35,7 +61,7 @@ async function syncSingleRepo(
   }
 
   // Update tree SHA and total file count
-  const totalFiles = result.mdFiles.length;
+  const totalFiles = filteredMdFiles.length;
   await db.repos.update(repo.fullName, { treeSha: result.treeSha, totalFiles });
   onProgress?.({ ...updatedRepo, treeSha: result.treeSha, totalFiles });
 
@@ -47,7 +73,7 @@ async function syncSingleRepo(
   const toFetch: { path: string; sha: string }[] = [];
   const newFileRecords: MdFile[] = [];
 
-  for (const entry of result.mdFiles) {
+  for (const entry of filteredMdFiles) {
     const existing = existingMap.get(entry.path);
     const fileId = `${repo.fullName}::${entry.path}`;
     const title = entry.path.split('/').pop()?.replace(/\.md$/i, '') ?? entry.path;
@@ -68,7 +94,7 @@ async function syncSingleRepo(
   }
 
   // Remove deleted files
-  const currentPaths = new Set(result.mdFiles.map((e) => e.path));
+  const currentPaths = new Set(filteredMdFiles.map((e) => e.path));
   const toDelete = existingFiles.filter((f) => !currentPaths.has(f.path));
   for (const f of toDelete) {
     await db.files.delete(f.id);
@@ -81,7 +107,7 @@ async function syncSingleRepo(
   }
 
   // Also ensure unchanged files are in the store
-  for (const entry of result.mdFiles) {
+  for (const entry of filteredMdFiles) {
     const fileId = `${repo.fullName}::${entry.path}`;
     const exists = await db.files.get(fileId);
     if (!exists) {
@@ -170,13 +196,18 @@ async function syncSingleRepo(
 /**
  * Sync all repos. Each repo is synced independently — one failure doesn't block others.
  */
-export async function syncAllRepos(onProgress?: ProgressCallback): Promise<void> {
+export async function syncAllRepos(onProgress?: ProgressCallback, configs?: RepoConfig[]): Promise<void> {
   const repos = await db.repos.toArray();
   useAppStore.getState().setRepos(repos);
 
+  const configMap = new Map<string, RepoConfig>();
+  if (configs) {
+    for (const c of configs) configMap.set(c.url, c);
+  }
+
   for (const repo of repos) {
     try {
-      await syncSingleRepo(repo, onProgress);
+      await syncSingleRepo(repo, onProgress, configMap.get(repo.fullName));
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       await db.repos.update(repo.fullName, {

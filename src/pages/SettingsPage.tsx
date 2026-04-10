@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Save, Trash2, Loader2, Plus, X, GripVertical,
   Globe, HardDrive, Check, Pencil, Code, List, Download, Upload, FileUp,
-  User, BookOpen, Key, Database, Languages,
+  User, BookOpen, Key, Database, Languages, ChevronDown, ChevronUp, RotateCw,
 } from 'lucide-react';
 
 const YamlEditor = lazy(() => import('../components/YamlEditor').then((m) => ({ default: m.YamlEditor })));
@@ -232,6 +232,11 @@ export default function SettingsPage() {
     next[idx] = { ...next[idx], [field]: value };
     setLocalRepos(next);
   }
+  function updateRepoConfig(idx: number, updates: Partial<RepoConfig>) {
+    const next = [...localRepos];
+    next[idx] = { ...next[idx], ...updates };
+    setLocalRepos(next);
+  }
   function removeRepo(idx: number) { setLocalRepos(localRepos.filter((_, i) => i !== idx)); }
   function handleDragStart(idx: number) { setDragIdx(idx); }
   function handleDragOver(e: React.DragEvent, idx: number) {
@@ -362,6 +367,7 @@ export default function SettingsPage() {
               onYamlChange={handleYamlChange}
               onAddRepo={addRepo}
               onUpdateRepo={updateRepo}
+              onUpdateRepoConfig={updateRepoConfig}
               onRemoveRepo={removeRepo}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
@@ -533,8 +539,34 @@ function ProfilesTab({ profiles, activeProfile, editingName, newName, saving, on
   );
 }
 
+/* -- Path List Editor -- */
+function PathListEditor({ paths, onChange, placeholder }: { paths: string[]; onChange: (paths: string[]) => void; placeholder: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-1">
+      {paths.map((p, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <input
+            type="text"
+            value={p}
+            onChange={(e) => { const next = [...paths]; next[i] = e.target.value; onChange(next); }}
+            placeholder={placeholder}
+            className="flex-1 text-xs px-2 py-1 border rounded bg-background outline-none placeholder:text-muted-foreground"
+          />
+          <button onClick={() => onChange(paths.filter((_, j) => j !== i))} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+      <button onClick={() => onChange([...paths, ''])} className="text-xs text-muted-foreground hover:text-foreground">
+        + {t('settings.repos.addPath')}
+      </button>
+    </div>
+  );
+}
+
 /* -- Repositories Tab -- */
-function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yamlText, yamlError, dragIdx, repos, onGithubRepoChange, onTabSwitch, onYamlChange, onAddRepo, onUpdateRepo, onRemoveRepo, onDragStart, onDragOver, onDragEnd, onSave, saving }: {
+function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yamlText, yamlError, dragIdx, repos, onGithubRepoChange, onTabSwitch, onYamlChange, onAddRepo, onUpdateRepo, onUpdateRepoConfig, onRemoveRepo, onDragStart, onDragOver, onDragEnd, onSave, saving }: {
   activeProfile: Profile | null;
   githubRepo: string;
   localRepos: RepoConfig[];
@@ -548,6 +580,7 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
   onYamlChange: (v: string) => void;
   onAddRepo: () => void;
   onUpdateRepo: (idx: number, field: 'url' | 'label', value: string) => void;
+  onUpdateRepoConfig: (idx: number, updates: Partial<RepoConfig>) => void;
   onRemoveRepo: (idx: number) => void;
   onDragStart: (idx: number) => void;
   onDragOver: (e: React.DragEvent, idx: number) => void;
@@ -556,6 +589,8 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
   saving: boolean;
 }) {
   const { t } = useTranslation();
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
   if (!activeProfile) return <p className="text-sm text-muted-foreground">{t('settings.repos.noProfile')}</p>;
 
   return (
@@ -609,51 +644,142 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
               </div>
               {localRepos.map((repo, idx) => {
                 const syncInfo = repos.find((r) => r.fullName === repo.url);
+                const isExpanded = expandedIdx === idx;
+                // commit field: undefined/empty = follow latest; any other value = pinned
+                // "pin" is a sentinel meaning "auto-lock on next sync"
+                const isPinned = !!repo.commit && repo.commit !== 'latest';
+                const isLockEnabled = isPinned || repo.commit === 'pin';
+                const hasSha = isPinned && repo.commit !== 'pin';
                 return (
                   <div
                     key={idx}
                     onDragOver={(e) => onDragOver(e, idx)}
                     onDragEnd={onDragEnd}
-                    className={cn(
-                      'flex items-center gap-3 px-5 py-3 border-b last:border-b-0',
-                      dragIdx === idx && 'opacity-50'
-                    )}
+                    className={cn('border-b last:border-b-0', dragIdx === idx && 'opacity-50')}
                   >
-                    <div
-                      draggable
-                      onDragStart={() => onDragStart(idx)}
-                      className="shrink-0 cursor-grab"
-                    >
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {syncInfo?.syncStatus === 'done' && <div className="w-2 h-2 rounded-full bg-green-500" />}
-                      {syncInfo?.syncStatus === 'syncing' && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                      {syncInfo?.syncStatus === 'error' && <div className="w-2 h-2 rounded-full bg-destructive" />}
-                      {!syncInfo && <div className="w-2 h-2 rounded-full bg-muted" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
+                    {/* Main row */}
+                    <div className="flex items-center gap-3 px-5 py-3">
+                      <div draggable onDragStart={() => onDragStart(idx)} className="shrink-0 cursor-grab">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {syncInfo?.syncStatus === 'done' && <div className="w-2 h-2 rounded-full bg-green-500" />}
+                        {syncInfo?.syncStatus === 'syncing' && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                        {syncInfo?.syncStatus === 'error' && <div className="w-2 h-2 rounded-full bg-destructive" />}
+                        {!syncInfo && <div className="w-2 h-2 rounded-full bg-muted" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={repo.url}
+                          onChange={(e) => onUpdateRepo(idx, 'url', e.target.value)}
+                          placeholder={t('settings.repos.ownerRepo')}
+                          className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                        />
+                        {syncInfo && (
+                          <span className="text-[11px] text-muted-foreground">{syncInfo.cachedFiles}/{syncInfo.totalFiles} {t('files')}</span>
+                        )}
+                      </div>
                       <input
                         type="text"
-                        value={repo.url}
-                        onChange={(e) => onUpdateRepo(idx, 'url', e.target.value)}
-                        placeholder={t('settings.repos.ownerRepo')}
-                        className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                        value={repo.label}
+                        onChange={(e) => onUpdateRepo(idx, 'label', e.target.value)}
+                        placeholder={t('settings.repos.label')}
+                        className="w-24 text-sm text-right bg-transparent outline-none placeholder:text-muted-foreground"
                       />
-                      {syncInfo && (
-                        <span className="text-[11px] text-muted-foreground">{syncInfo.cachedFiles}/{syncInfo.totalFiles} {t('files')}</span>
-                      )}
+                      <button
+                        onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                        className="p-1 rounded hover:bg-accent text-muted-foreground shrink-0"
+                        title={t('settings.repos.advanced')}
+                      >
+                        {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </button>
+                      <button onClick={() => onRemoveRepo(idx)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <input
-                      type="text"
-                      value={repo.label}
-                      onChange={(e) => onUpdateRepo(idx, 'label', e.target.value)}
-                      placeholder={t('settings.repos.label')}
-                      className="w-24 text-sm text-right bg-transparent outline-none placeholder:text-muted-foreground"
-                    />
-                    <button onClick={() => onRemoveRepo(idx)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+
+                    {/* Advanced settings (expanded) */}
+                    {isExpanded && (
+                      <div className="px-5 pb-4 pt-0 ml-10 space-y-3 border-t border-dashed">
+                        <div className="pt-3 grid grid-cols-2 gap-4">
+                          {/* Branch */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-muted-foreground">{t('settings.repos.branch')}</label>
+                            <input
+                              type="text"
+                              value={repo.branch ?? ''}
+                              onChange={(e) => onUpdateRepoConfig(idx, { branch: e.target.value || undefined })}
+                              placeholder={t('settings.repos.branchPlaceholder')}
+                              className="w-full text-xs px-2 py-1.5 border rounded bg-background outline-none placeholder:text-muted-foreground"
+                            />
+                          </div>
+
+                          {/* Commit lock */}
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-medium text-muted-foreground">{t('settings.repos.commitLock')}</label>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  if (isLockEnabled) {
+                                    onUpdateRepoConfig(idx, { commit: undefined });
+                                  } else {
+                                    // Enable lock — "pin" sentinel means auto-lock on next sync
+                                    onUpdateRepoConfig(idx, { commit: 'pin' });
+                                  }
+                                }}
+                                className={cn(
+                                  'w-8 h-4 rounded-full transition-colors shrink-0 relative',
+                                  isLockEnabled ? 'bg-primary' : 'bg-muted'
+                                )}
+                              >
+                                <div className={cn(
+                                  'absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform',
+                                  isLockEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                                )} />
+                              </button>
+                              <input
+                                type="text"
+                                value={hasSha ? repo.commit ?? '' : ''}
+                                onChange={(e) => onUpdateRepoConfig(idx, { commit: e.target.value || 'pin' })}
+                                placeholder={isLockEnabled ? t('settings.repos.commitAutoHint') : t('settings.repos.commitSha')}
+                                disabled={!isLockEnabled}
+                                className="flex-1 text-xs px-2 py-1.5 border rounded bg-background outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                              />
+                              {hasSha && (
+                                <button
+                                  onClick={() => onUpdateRepoConfig(idx, { commit: 'pin' })}
+                                  className="text-[10px] px-1.5 py-0.5 rounded border hover:bg-accent text-muted-foreground whitespace-nowrap"
+                                  title={t('settings.repos.commitUpdate')}
+                                >
+                                  <RotateCw className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Include paths */}
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">{t('settings.repos.includePaths')}</label>
+                          <PathListEditor
+                            paths={repo.includePaths ?? []}
+                            onChange={(paths) => onUpdateRepoConfig(idx, { includePaths: paths.length > 0 ? paths : undefined })}
+                            placeholder={t('settings.repos.pathPlaceholder')}
+                          />
+                        </div>
+
+                        {/* Exclude paths */}
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">{t('settings.repos.excludePaths')}</label>
+                          <PathListEditor
+                            paths={repo.excludePaths ?? []}
+                            onChange={(paths) => onUpdateRepoConfig(idx, { excludePaths: paths.length > 0 ? paths : undefined })}
+                            placeholder={t('settings.repos.pathPlaceholder')}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

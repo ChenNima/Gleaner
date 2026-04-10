@@ -76,18 +76,19 @@ export async function setActiveProfile(id: string): Promise<void> {
   await db.config.put({ key: ACTIVE_PROFILE_KEY, value: id });
 }
 
-/** Parse repos from a profile's config */
-export async function getReposFromProfile(profile: Profile): Promise<Repo[]> {
-  let repoConfigs: RepoConfig[];
-
+/** Get RepoConfig[] from a profile */
+export async function getRepoConfigs(profile: Profile): Promise<RepoConfig[]> {
   if (profile.type === 'github') {
     if (!profile.githubRepo) return [];
-    repoConfigs = await fetchAndParseConfig(profile.githubRepo);
-  } else {
-    // Local: parse yamlContent
-    if (!profile.yamlContent) return [];
-    repoConfigs = parseLocalYaml(profile.yamlContent);
+    return fetchAndParseConfig(profile.githubRepo);
   }
+  if (!profile.yamlContent) return [];
+  return parseLocalYaml(profile.yamlContent);
+}
+
+/** Parse repos from a profile's config */
+export async function getReposFromProfile(profile: Profile): Promise<Repo[]> {
+  const repoConfigs = await getRepoConfigs(profile);
 
   return repoConfigs.map((rc) => ({
     fullName: rc.url,
@@ -108,16 +109,31 @@ export function parseLocalYaml(yamlContent: string): RepoConfig[] {
 
   return parsed.repos
     .filter((r: any) => r && r.url)
-    .map((r: any) => ({
-      url: cleanRepoUrl(r.url),
-      label: r.label ?? r.url,
-    }));
+    .map((r: any) => {
+      const rc: RepoConfig = {
+        url: cleanRepoUrl(r.url),
+        label: r.label ?? r.url,
+      };
+      if (r.branch && typeof r.branch === 'string') rc.branch = r.branch;
+      if (r.commit && typeof r.commit === 'string' && r.commit !== 'latest') rc.commit = r.commit;
+      if (Array.isArray(r.includePaths)) rc.includePaths = r.includePaths.filter((p: unknown) => typeof p === 'string');
+      if (Array.isArray(r.excludePaths)) rc.excludePaths = r.excludePaths.filter((p: unknown) => typeof p === 'string');
+      return rc;
+    });
 }
 
 /** Generate YAML from RepoConfig[] */
 export function repoConfigsToYaml(configs: RepoConfig[]): string {
   return yaml.dump({
-    repos: configs.map((c) => ({ url: c.url, label: c.label })),
+    repos: configs.map((c) => {
+      const entry: Record<string, unknown> = { url: c.url, label: c.label };
+      if (c.branch) entry.branch = c.branch;
+      if (c.commit && c.commit !== 'latest' && c.commit !== 'pin') entry.commit = c.commit;
+      else if (c.commit === 'pin') entry.commit = 'pin';
+      if (c.includePaths && c.includePaths.length > 0) entry.includePaths = c.includePaths;
+      if (c.excludePaths && c.excludePaths.length > 0) entry.excludePaths = c.excludePaths;
+      return entry;
+    }),
   });
 }
 
@@ -173,7 +189,17 @@ export async function switchProfile(id: string): Promise<void> {
   if (!profile) throw new Error('Profile not found');
 
   // 3. Load repos from profile
-  const newRepos = await getReposFromProfile(profile);
+  const repoConfigs = await getRepoConfigs(profile);
+  const newRepos = repoConfigs.map((rc) => ({
+    fullName: rc.url,
+    label: rc.label,
+    treeSha: null,
+    syncStatus: 'idle' as const,
+    syncError: null,
+    totalFiles: 0,
+    cachedFiles: 0,
+    lastSyncAt: null,
+  }));
 
   // 4. Merge with existing cache (preserve treeSha/cachedFiles for shared repos)
   const existing = await db.repos.toArray();
@@ -207,7 +233,7 @@ export async function switchProfile(id: string): Promise<void> {
   currentSyncAbort = new AbortController();
   syncAllRepos((repo) => {
     useAppStore.getState().updateRepo(repo.fullName, repo);
-  });
+  }, repoConfigs);
 }
 
 /**

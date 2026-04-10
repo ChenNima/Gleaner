@@ -177,18 +177,30 @@ export function parseRepoFullName(fullName: string): { owner: string; repo: stri
 export async function syncRepoTree(
   owner: string,
   repo: string,
-  localTreeSha: string | null
+  localTreeSha: string | null,
+  options?: { branch?: string; commit?: string }
 ): Promise<{
   treeSha: string;
+  commitSha: string;
   mdFiles: TreeEntry[];
   changed: boolean;
 }> {
-  const info = await getRepoInfo(owner, repo);
-  const commitSha = await getLatestCommitSha(owner, repo, info.defaultBranch);
+  let commitSha: string;
+
+  if (options?.commit && options.commit !== 'latest') {
+    // Pinned commit — use directly, skip branch lookup
+    commitSha = options.commit;
+  } else {
+    // Follow branch HEAD
+    const info = await getRepoInfo(owner, repo);
+    const branch = options?.branch || info.defaultBranch;
+    commitSha = await getLatestCommitSha(owner, repo, branch);
+  }
+
   const treeSha = await getCommitTreeSha(owner, repo, commitSha);
 
   if (treeSha === localTreeSha) {
-    return { treeSha, mdFiles: [], changed: false };
+    return { treeSha, commitSha, mdFiles: [], changed: false };
   }
 
   const tree = await getRepoTree(owner, repo, treeSha);
@@ -196,5 +208,5 @@ export async function syncRepoTree(
     (e) => e.type === 'blob' && e.path.endsWith('.md')
   );
 
-  return { treeSha, mdFiles, changed: true };
+  return { treeSha, commitSha, mdFiles, changed: true };
 }

@@ -10,6 +10,10 @@ const CONFIG_FILE = 'gleaner.yaml';
 export interface RepoConfig {
   url: string;
   label: string;
+  branch?: string;
+  commit?: string;           // "latest" or omitted = follow HEAD; SHA string = pinned
+  includePaths?: string[];
+  excludePaths?: string[];
 }
 
 interface GleanerConfig {
@@ -65,14 +69,19 @@ export async function fetchAndParseConfig(configRepoFullName: string): Promise<R
     throw new ConfigParseError('"repos" must be an array');
   }
 
-  return config.repos.map((r, i) => {
+  return config.repos.map((r: any, i: number) => {
     if (!r.url) {
       throw new ConfigParseError(`Entry ${i}: missing "url" field`);
     }
-    return {
+    const rc: RepoConfig = {
       url: parseRepoUrl(r.url),
       label: r.label ?? r.url,
     };
+    if (r.branch && typeof r.branch === 'string') rc.branch = r.branch;
+    if (r.commit && typeof r.commit === 'string' && r.commit !== 'latest') rc.commit = r.commit;
+    if (Array.isArray(r.includePaths)) rc.includePaths = r.includePaths.filter((p: unknown) => typeof p === 'string');
+    if (Array.isArray(r.excludePaths)) rc.excludePaths = r.excludePaths.filter((p: unknown) => typeof p === 'string');
+    return rc;
   });
 }
 
