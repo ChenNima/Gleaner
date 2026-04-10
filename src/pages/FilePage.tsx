@@ -72,6 +72,13 @@ export default function FilePage() {
     }
   };
 
+  const handleInternalLinkClick = useCallback(
+    (repoPath: string) => {
+      navigate(`/repo/${owner}/${name}/${repoPath}`);
+    },
+    [navigate, owner, name]
+  );
+
   const handleBreadcrumbClick = useCallback(
     (segmentPath: string) => {
       // segmentPath is relative to repo, e.g. "docs" or "docs/blogs"
@@ -133,6 +140,7 @@ export default function FilePage() {
           loading={loading}
           resolvedLinks={resolvedLinks}
           onWikilinkClick={handleWikilinkClick}
+          onInternalLinkClick={handleInternalLinkClick}
           repoFullName={repoFullName}
         />
       </div>

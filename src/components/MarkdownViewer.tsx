@@ -17,6 +17,7 @@ interface MarkdownViewerProps {
   loading?: boolean;
   resolvedLinks?: Map<string, boolean>; // targetTitle -> resolved
   onWikilinkClick?: (target: string) => void;
+  onInternalLinkClick?: (repoPath: string) => void;
   repoFullName?: string;
 }
 
@@ -32,7 +33,7 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
 // Module-level cache: repo::path → blob URL (persists across re-renders, cleared on page reload)
 const imageCache = new Map<string, string>();
 
-export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, repoFullName }: MarkdownViewerProps) {
+export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, repoFullName }: MarkdownViewerProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const html = useMemo(() => {
     if (!file?.content) return '';
@@ -133,7 +134,20 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
 
     // Internal .md links — navigate via router
     if (href.endsWith('.md') || href.includes('.md#')) {
-      // Handled by default browser navigation (relative URL resolves to correct route)
+      e.preventDefault();
+      const linkPath = href.split('#')[0];
+      if (linkPath && onInternalLinkClick && file) {
+        // Resolve relative path against current file's directory
+        const fileDir = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
+        const parts = (fileDir ? fileDir + '/' + linkPath : linkPath).split('/');
+        const resolved: string[] = [];
+        for (const part of parts) {
+          if (part === '.' || part === '') continue;
+          if (part === '..') { resolved.pop(); continue; }
+          resolved.push(part);
+        }
+        onInternalLinkClick(resolved.join('/'));
+      }
       return;
     }
   };
