@@ -148,7 +148,7 @@ const en = {
   // Proxy
   'settings.proxy.label': 'GitHub API Proxy',
   'settings.proxy.info': 'If GitHub API is slow or unreliable in your region, configure a proxy service. All API requests will be routed through it.',
-  'settings.proxy.placeholder': 'https://ghproxy.vip',
+  'settings.proxy.placeholder': 'https://gh-proxy.com',
   'settings.proxy.hint': 'Leave empty to connect directly. The proxy URL will be prepended to all GitHub API requests.',
 
   // Cache tab

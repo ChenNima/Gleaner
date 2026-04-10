@@ -148,7 +148,7 @@ const zh = {
   // Proxy
   'settings.proxy.label': 'GitHub API 代理',
   'settings.proxy.info': '如果 GitHub API 在您所在地区访问缓慢或不稳定，可以配置代理服务。所有 API 请求将通过代理转发。',
-  'settings.proxy.placeholder': 'https://ghproxy.vip',
+  'settings.proxy.placeholder': 'https://gh-proxy.com',
   'settings.proxy.hint': '留空则直连 GitHub。代理地址会作为前缀添加到所有 GitHub API 请求中。',
 
   // Cache tab
