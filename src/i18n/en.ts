@@ -192,6 +192,14 @@ const en = {
   'settings.ie.importedFile': 'Imported {{count}} repos from file',
   'settings.ie.importFailed': 'Import failed: {{error}}',
 
+  // Search
+  'search.title': 'Search',
+  'search.placeholder': 'Search files…',
+  'search.noResults': 'No results found',
+  'search.navigate': 'navigate',
+  'search.open': 'open',
+  'search.close': 'close',
+
   // Language
   'settings.tab.language': 'Language',
   'settings.lang.title': 'Language',

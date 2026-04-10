@@ -192,6 +192,14 @@ const zh = {
   'settings.ie.importedFile': '已从文件导入 {{count}} 个仓库',
   'settings.ie.importFailed': '导入失败：{{error}}',
 
+  // Search
+  'search.title': '搜索',
+  'search.placeholder': '搜索文件…',
+  'search.noResults': '未找到结果',
+  'search.navigate': '导航',
+  'search.open': '打开',
+  'search.close': '关闭',
+
   // Language
   'settings.tab.language': '语言',
   'settings.lang.title': '语言',

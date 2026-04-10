@@ -17,6 +17,7 @@ import { CodeBlock } from './markdown/CodeBlock';
 import { ResponsiveTable } from './markdown/ResponsiveTable';
 import { RepoImage } from './markdown/RepoImage';
 import { MdLink } from './markdown/MdLink';
+import { RepoVideo } from './markdown/RepoVideo';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
@@ -79,6 +80,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
                 fileDir={fileDir}
               />
             ),
+            video: (props: any) => <RepoVideo {...props} />,
             a: (props: any) => (
               <MdLink
                 {...props}

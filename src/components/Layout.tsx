@@ -1,11 +1,12 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Network, Settings, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Network, Settings, Search, X, MoreVertical } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ThemeToggle } from './ThemeToggle';
 import { SyncStatus } from './SyncStatus';
 import { FileTree } from './FileTree';
+import { SearchDialog } from './SearchDialog';
 import { cn } from '../lib/utils';
 import { hydrateStoreFromDB } from '../lib/hydrate';
 import { ProfileSwitcher } from './ProfileSwitcher';
@@ -73,6 +74,33 @@ export function Layout({
 }) {
   const isMobileRef = useIsMobile();
   const { t } = useTranslation();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu on outside click
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [mobileMenuOpen]);
+
+  // Global Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   useEffect(() => {
     hydrateStoreFromDB();
@@ -122,10 +150,21 @@ export function Layout({
 
         <div className="flex items-center gap-0.5 md:gap-1">
           <SyncStatus />
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="p-1.5 rounded hover:bg-accent text-muted-foreground flex items-center gap-1"
+            title={t('search.title')}
+            data-testid="search-trigger"
+          >
+            <Search className="h-4 w-4" />
+            <kbd className="hidden md:inline text-[10px] px-1 py-0.5 rounded border bg-muted text-muted-foreground">⌘K</kbd>
+          </button>
+
+          {/* Desktop actions */}
           <Link
             to="/graph"
             className={cn(
-              'p-1.5 rounded hover:bg-accent text-muted-foreground',
+              'hidden md:flex p-1.5 rounded hover:bg-accent text-muted-foreground',
               location.pathname === '/graph' && 'bg-accent text-foreground'
             )}
             title={t('nav.knowledgeGraph')}
@@ -135,17 +174,19 @@ export function Layout({
           <Link
             to="/settings"
             className={cn(
-              'p-1.5 rounded hover:bg-accent text-muted-foreground',
+              'hidden md:flex p-1.5 rounded hover:bg-accent text-muted-foreground',
               location.pathname === '/settings' && 'bg-accent text-foreground'
             )}
             title={t('nav.settings')}
           >
             <Settings className="h-4 w-4" />
           </Link>
-          <ThemeToggle />
+          <div className="hidden md:flex">
+            <ThemeToggle />
+          </div>
           <button
             onClick={toggleRight}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground"
+            className="hidden md:flex p-1.5 rounded hover:bg-accent text-muted-foreground"
             title={rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
           >
             {rightOpen ? (
@@ -154,6 +195,56 @@ export function Layout({
               <PanelRightOpen className="h-4 w-4" />
             )}
           </button>
+
+          {/* Mobile action menu */}
+          <div className="relative md:hidden" ref={mobileMenuRef}>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 rounded hover:bg-accent text-muted-foreground"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {mobileMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 rounded-md border bg-popover shadow-lg z-50 py-1">
+                <Link
+                  to="/graph"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent w-full',
+                    location.pathname === '/graph' && 'text-foreground font-medium'
+                  )}
+                >
+                  <Network className="h-4 w-4" />
+                  {t('nav.knowledgeGraph')}
+                </Link>
+                <Link
+                  to="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent w-full',
+                    location.pathname === '/settings' && 'text-foreground font-medium'
+                  )}
+                >
+                  <Settings className="h-4 w-4" />
+                  {t('nav.settings')}
+                </Link>
+                <button
+                  onClick={() => { toggleRight(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent w-full text-left"
+                >
+                  {rightOpen ? (
+                    <PanelRightClose className="h-4 w-4" />
+                  ) : (
+                    <PanelRightOpen className="h-4 w-4" />
+                  )}
+                  {rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
+                </button>
+                <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <ThemeToggle />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -220,6 +311,8 @@ export function Layout({
           </>
         )}
       </div>
+
+      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

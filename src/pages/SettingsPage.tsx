@@ -284,7 +284,7 @@ export default function SettingsPage() {
       {/* Navbar */}
       <header className="flex items-center justify-between h-11 px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/')} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <span className="text-sm font-semibold">{t('settings.title')}</span>
