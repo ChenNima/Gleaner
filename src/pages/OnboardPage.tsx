@@ -12,6 +12,8 @@ import {
 } from '../lib/profile';
 import { cn } from '../lib/utils';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { setGithubProxy } from '../lib/github';
+import { setLanguage, getLanguageSetting } from '../i18n';
 
 const DOCS_REPO = 'ChenNima/Gleaner-Docs';
 
@@ -34,6 +36,8 @@ export default function OnboardPage() {
 
   // Step 1
   const [token, setToken] = useState('');
+  const [proxyUrl, setProxyUrl] = useState('');
+  const [lang, setLang] = useState<'en' | 'zh' | 'system'>(getLanguageSetting());
 
   // Step 2
   const [selectedOption, setSelectedOption] = useState<RepoOption>('quickstart');
@@ -45,6 +49,10 @@ export default function OnboardPage() {
     if (token.trim()) {
       await setPat(token.trim());
     }
+    if (proxyUrl.trim()) {
+      setGithubProxy(proxyUrl.trim());
+    }
+    setLanguage(lang);
     setStep(2);
   };
 
@@ -121,6 +129,10 @@ export default function OnboardPage() {
             <Step1
               token={token}
               setToken={setToken}
+              proxyUrl={proxyUrl}
+              setProxyUrl={setProxyUrl}
+              lang={lang}
+              setLang={setLang}
               onNext={handleStep1Next}
               t={t}
             />
@@ -150,9 +162,13 @@ export default function OnboardPage() {
 
 /* ─── Step 1: Token ─── */
 
-function Step1({ token, setToken, onNext, t }: {
+function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, t }: {
   token: string;
   setToken: (v: string) => void;
+  proxyUrl: string;
+  setProxyUrl: (v: string) => void;
+  lang: 'en' | 'zh' | 'system';
+  setLang: (v: 'en' | 'zh' | 'system') => void;
   onNext: () => void;
   t: (key: string) => string;
 }) {
@@ -185,6 +201,42 @@ function Step1({ token, setToken, onNext, t }: {
         </p>
       </div>
 
+      {/* Proxy input */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">{t('onboard.proxy.label')}</label>
+        <input
+          type="text"
+          value={proxyUrl}
+          onChange={(e) => setProxyUrl(e.target.value)}
+          placeholder="https://gh-proxy.com"
+          className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <p className="text-xs text-muted-foreground">
+          {t('onboard.proxy.hint')}
+        </p>
+      </div>
+
+      {/* Language */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">{t('onboard.lang.label')}</label>
+        <div className="flex gap-2">
+          {(['system', 'en', 'zh'] as const).map((opt) => (
+            <button
+              key={opt}
+              onClick={() => { setLang(opt); setLanguage(opt); }}
+              className={cn(
+                'flex-1 px-3 py-2 text-sm border rounded-md transition-colors',
+                lang === opt
+                  ? 'border-primary bg-primary/5 text-foreground font-medium'
+                  : 'border-border text-muted-foreground hover:border-muted-foreground/30'
+              )}
+            >
+              {t(`onboard.lang.${opt}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-3">
         <button
@@ -197,7 +249,7 @@ function Step1({ token, setToken, onNext, t }: {
           onClick={onNext}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
         >
-          {token.trim() ? t('onboard.continue') : t('onboard.skip')}
+          {t('onboard.continue')}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>
