@@ -1,23 +1,28 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useRef, useCallback, type JSX } from 'react';
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
-import rehypeStringify from 'rehype-stringify';
+import rehypeRaw from 'rehype-raw';
+import rehypeReact from 'rehype-react';
 import type { MdFile } from '../db';
 import { Loader2 } from 'lucide-react';
-import { getAuthHeaders } from '../lib/auth';
 import { useThemeStore } from '../stores/theme';
 import { cn } from '../lib/utils';
+import { CodeBlock } from './markdown/CodeBlock';
+import { ResponsiveTable } from './markdown/ResponsiveTable';
+import { RepoImage } from './markdown/RepoImage';
+import { MdLink } from './markdown/MdLink';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
 interface MarkdownViewerProps {
   file: MdFile | null;
   loading?: boolean;
-  resolvedLinks?: Map<string, boolean>; // targetTitle -> resolved
+  resolvedLinks?: Map<string, boolean>;
   onWikilinkClick?: (target: string) => void;
   onInternalLinkClick?: (repoPath: string) => void;
   repoFullName?: string;
@@ -32,14 +37,20 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
   });
 }
 
-// Module-level cache: repo::path → blob URL (persists across re-renders, cleared on page reload)
-const imageCache = new Map<string, string>();
-
 export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, repoFullName }: MarkdownViewerProps) {
-  const contentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const markdownTheme = useThemeStore((s) => s.markdownTheme);
-  const html = useMemo(() => {
-    if (!file?.content) return '';
+
+  const fileDir = file?.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
+
+  const handleAnchorClick = useCallback((id: string) => {
+    const el = containerRef.current?.querySelector(`[id="${CSS.escape(id)}"]`)
+      ?? containerRef.current?.querySelector(`[id="${CSS.escape(id.toLowerCase())}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  const content: JSX.Element | null = useMemo(() => {
+    if (!file?.content) return null;
 
     const preprocessed = preprocessWikilinks(file.content, resolvedLinks);
 
@@ -48,112 +59,41 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
         .use(remarkParse)
         .use(remarkGfm)
         .use(remarkRehype, { allowDangerousHtml: true })
+        .use(rehypeRaw)
         .use(rehypeSlug)
         .use(rehypeHighlight, { detect: true, ignoreMissing: true })
-        .use(rehypeStringify, { allowDangerousHtml: true })
+        .use(rehypeReact, {
+          Fragment,
+          jsx: jsx as any,
+          jsxs: jsxs as any,
+          components: {
+            pre: (props: any) => <CodeBlock {...props} />,
+            table: (props: any) => <ResponsiveTable {...props} />,
+            img: (props: any) => (
+              <RepoImage
+                {...props}
+                repoFullName={repoFullName}
+                fileDir={fileDir}
+              />
+            ),
+            a: (props: any) => (
+              <MdLink
+                {...props}
+                onWikilinkClick={onWikilinkClick}
+                onInternalLinkClick={onInternalLinkClick}
+                onAnchorClick={handleAnchorClick}
+                fileDir={fileDir}
+              />
+            ),
+          },
+        })
         .processSync(preprocessed);
 
-      return String(result);
+      return result.result;
     } catch {
-      return `<p class="text-destructive">Failed to render markdown.</p>`;
+      return <p className="text-destructive">Failed to render markdown.</p>;
     }
-  }, [file?.content, resolvedLinks]);
-
-  // Resolve relative image paths to GitHub raw content URLs
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el || !file || !repoFullName) return;
-    const fileDir = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
-
-    const imgs = el.querySelectorAll('img[src]');
-    imgs.forEach(async (img) => {
-      const src = img.getAttribute('src');
-      if (!src || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('blob:')) return;
-
-      // Resolve relative path
-      const parts = (fileDir ? fileDir + '/' + src : src).split('/');
-      const resolved: string[] = [];
-      for (const part of parts) {
-        if (part === '.' || part === '') continue;
-        if (part === '..') { resolved.pop(); continue; }
-        resolved.push(part);
-      }
-      const fullPath = resolved.join('/');
-      const cacheKey = `${repoFullName}::${fullPath}`;
-
-      // Check cache first
-      const cached = imageCache.get(cacheKey);
-      if (cached) { img.setAttribute('src', cached); return; }
-
-      // Fetch via GitHub API with auth
-      const [owner, repo] = repoFullName.split('/');
-      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${fullPath}`;
-      try {
-        const headers = await getAuthHeaders();
-        const resp = await fetch(apiUrl, {
-          headers: { ...headers, Accept: 'application/vnd.github.raw' },
-        });
-        if (!resp.ok) return;
-        const blob = await resp.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        imageCache.set(cacheKey, blobUrl);
-        img.setAttribute('src', blobUrl);
-      } catch {
-        // Leave broken image
-      }
-    });
-  }, [html, file, repoFullName, markdownTheme]);
-
-  const handleClick = (e: React.MouseEvent) => {
-    // Wikilinks
-    const wikilink = (e.target as HTMLElement).closest('[data-wikilink]');
-    if (wikilink) {
-      e.preventDefault();
-      const wikilinkTarget = decodeURIComponent(
-        wikilink.getAttribute('data-wikilink') ?? ''
-      );
-      onWikilinkClick?.(wikilinkTarget);
-      return;
-    }
-
-    // Regular <a> clicks
-    const anchor = (e.target as HTMLElement).closest('a[href]');
-    if (!anchor) return;
-    const href = anchor.getAttribute('href');
-    if (!href) return;
-
-    // Anchor links (#section) — scroll to element
-    if (href.startsWith('#')) {
-      e.preventDefault();
-      const id = decodeURIComponent(href.slice(1));
-      const el = contentRef.current?.querySelector(`[id="${CSS.escape(id)}"]`)
-        ?? contentRef.current?.querySelector(`[id="${CSS.escape(id.toLowerCase())}"]`);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
-
-    // External links — let browser handle normally
-    if (href.startsWith('http://') || href.startsWith('https://')) return;
-
-    // Internal .md links — navigate via router
-    if (href.endsWith('.md') || href.includes('.md#')) {
-      e.preventDefault();
-      const linkPath = href.split('#')[0];
-      if (linkPath && onInternalLinkClick && file) {
-        // Resolve relative path against current file's directory
-        const fileDir = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
-        const parts = (fileDir ? fileDir + '/' + linkPath : linkPath).split('/');
-        const resolved: string[] = [];
-        for (const part of parts) {
-          if (part === '.' || part === '') continue;
-          if (part === '..') { resolved.pop(); continue; }
-          resolved.push(part);
-        }
-        onInternalLinkClick(resolved.join('/'));
-      }
-      return;
-    }
-  };
+  }, [file?.content, resolvedLinks, repoFullName, fileDir, onWikilinkClick, onInternalLinkClick, handleAnchorClick]);
 
   if (loading) {
     return (
@@ -182,10 +122,10 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
 
   return (
     <div
-      ref={contentRef}
+      ref={containerRef}
       className={cn('prose prose-sm dark:prose-invert max-w-none px-8 py-6', `md-theme-${markdownTheme}`)}
-      onClick={handleClick}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    >
+      {content}
+    </div>
   );
 }
