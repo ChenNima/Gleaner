@@ -15,7 +15,7 @@ export default function HomePage() {
     (async () => {
       const profile = await getActiveProfile();
       if (!profile) {
-        navigate('/settings', { replace: true });
+        navigate('/onboard', { replace: true });
         return;
       }
 

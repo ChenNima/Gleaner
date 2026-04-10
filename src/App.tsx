@@ -6,6 +6,7 @@ import { useAppStore } from './stores/app';
 import HomePage from './pages/HomePage';
 import GraphPage from './pages/GraphPage';
 import SettingsPage from './pages/SettingsPage';
+import OnboardPage from './pages/OnboardPage';
 import FilePage from './pages/FilePage';
 
 function FilePageWithPanel() {
@@ -39,6 +40,7 @@ function App() {
             </Layout>
           }
         />
+        <Route path="/onboard" element={<OnboardPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
