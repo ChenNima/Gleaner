@@ -565,8 +565,6 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                 return (
                   <div
                     key={idx}
-                    draggable
-                    onDragStart={() => onDragStart(idx)}
                     onDragOver={(e) => onDragOver(e, idx)}
                     onDragEnd={onDragEnd}
                     className={cn(
@@ -574,7 +572,13 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                       dragIdx === idx && 'opacity-50'
                     )}
                   >
-                    <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
+                    <div
+                      draggable
+                      onDragStart={() => onDragStart(idx)}
+                      className="shrink-0 cursor-grab"
+                    >
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {syncInfo?.syncStatus === 'done' && <div className="w-2 h-2 rounded-full bg-green-500" />}
                       {syncInfo?.syncStatus === 'syncing' && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
