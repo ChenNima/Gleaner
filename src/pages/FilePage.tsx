@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, ChevronRightIcon } from 'lucide-react';
 import { DocumentThemePicker } from '../components/DocumentThemePicker';
 import { db } from '../db';
@@ -15,6 +16,7 @@ const scrollMemory = new Map<string, number>();
 export default function FilePage() {
   const { owner, name, '*': filePath } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const setCurrentFileId = useAppStore((s) => s.setCurrentFileId);
   const [file, setFile] = useState<MdFile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,14 +145,14 @@ export default function FilePage() {
         <button
           onClick={() => window.history.back()}
           className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground shrink-0"
-          title="Go back"
+          title={t('file.goBack')}
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => window.history.forward()}
           className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground shrink-0"
-          title="Go forward"
+          title={t('file.goForward')}
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>

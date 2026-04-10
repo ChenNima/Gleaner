@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Network, Settings, X } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ThemeToggle } from './ThemeToggle';
@@ -71,6 +72,7 @@ export function Layout({
   rightPanel?: React.ReactNode;
 }) {
   const isMobileRef = useIsMobile();
+  const { t } = useTranslation();
 
   useEffect(() => {
     hydrateStoreFromDB();
@@ -104,7 +106,7 @@ export function Layout({
           <button
             onClick={toggleLeft}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground"
-            title={leftOpen ? 'Hide sidebar' : 'Show sidebar'}
+            title={leftOpen ? t('nav.hideSidebar') : t('nav.showSidebar')}
           >
             {leftOpen ? (
               <PanelLeftClose className="h-4 w-4" />
@@ -126,7 +128,7 @@ export function Layout({
               'p-1.5 rounded hover:bg-accent text-muted-foreground',
               location.pathname === '/graph' && 'bg-accent text-foreground'
             )}
-            title="Knowledge Graph"
+            title={t('nav.knowledgeGraph')}
           >
             <Network className="h-4 w-4" />
           </Link>
@@ -136,7 +138,7 @@ export function Layout({
               'p-1.5 rounded hover:bg-accent text-muted-foreground',
               location.pathname === '/settings' && 'bg-accent text-foreground'
             )}
-            title="Settings"
+            title={t('nav.settings')}
           >
             <Settings className="h-4 w-4" />
           </Link>
@@ -144,7 +146,7 @@ export function Layout({
           <button
             onClick={toggleRight}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground"
-            title={rightOpen ? 'Hide backlinks' : 'Show backlinks'}
+            title={rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
           >
             {rightOpen ? (
               <PanelRightClose className="h-4 w-4" />
@@ -174,7 +176,7 @@ export function Layout({
             >
               {/* Close button on mobile */}
               <div className="flex items-center justify-between px-2 py-1.5 border-b md:hidden">
-                <span className="text-xs font-semibold text-muted-foreground">Files</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t('nav.files')}</span>
                 <button onClick={toggleLeft} className="p-1 rounded hover:bg-accent">
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
@@ -211,7 +213,7 @@ export function Layout({
               </div>
               {rightPanel ?? (
                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                  No backlinks
+                  {t('nav.noBacklinks')}
                 </div>
               )}
             </aside>

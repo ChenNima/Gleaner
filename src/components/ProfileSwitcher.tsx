@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, Check, HardDrive, Globe, Settings, Loader2 } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { switchProfile } from '../lib/profile';
@@ -12,6 +13,7 @@ export function ProfileSwitcher() {
   const [switching, setSwitching] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
 
@@ -57,7 +59,7 @@ export function ProfileSwitcher() {
         ) : (
           <Globe className="h-3 w-3 shrink-0" />
         )}
-        <span className="truncate">{activeProfile?.name ?? 'Profile'}</span>
+        <span className="truncate">{activeProfile?.name ?? t('profile.fallback')}</span>
         <ChevronDown className="h-3 w-3 shrink-0" />
       </button>
 
@@ -90,7 +92,7 @@ export function ProfileSwitcher() {
                     ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                     : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                 )}>
-                  {p.type === 'local' ? 'Local' : 'GitHub'}
+                  {p.type === 'local' ? t('profile.local') : t('profile.github')}
                 </span>
               </button>
             );
@@ -102,7 +104,7 @@ export function ProfileSwitcher() {
           >
             <span className="w-3.5 shrink-0" />
             <Settings className="h-3 w-3" />
-            <span>Manage Profiles</span>
+            <span>{t('profile.manage')}</span>
           </button>
         </div>
       )}

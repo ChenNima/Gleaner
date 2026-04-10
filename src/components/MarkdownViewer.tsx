@@ -1,4 +1,5 @@
 import { useMemo, useRef, useCallback, type JSX } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -41,6 +42,7 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
 export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, onFolderClick, repoFullName }: MarkdownViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markdownTheme = useThemeStore((s) => s.markdownTheme);
+  const { t } = useTranslation();
 
   const fileDir = file?.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
 
@@ -93,7 +95,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
 
       return result.result;
     } catch {
-      return <p className="text-destructive">Failed to render markdown.</p>;
+      return <p className="text-destructive">{t('md.renderFailed')}</p>;
     }
   }, [file?.content, resolvedLinks, repoFullName, fileDir, onWikilinkClick, onInternalLinkClick, onFolderClick, handleAnchorClick]);
 
@@ -108,7 +110,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
   if (!file) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        Select a file to view
+        {t('md.selectFile')}
       </div>
     );
   }
@@ -117,7 +119,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading content...</span>
+        <span className="ml-2 text-sm text-muted-foreground">{t('md.loadingContent')}</span>
       </div>
     );
   }

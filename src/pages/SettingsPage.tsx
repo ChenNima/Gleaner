@@ -1,9 +1,10 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Save, Trash2, Loader2, Plus, X, GripVertical,
   Globe, HardDrive, Check, Pencil, Code, List, Download, Upload, FileUp,
-  User, BookOpen, Key, Database,
+  User, BookOpen, Key, Database, Languages,
 } from 'lucide-react';
 
 const YamlEditor = lazy(() => import('../components/YamlEditor').then((m) => ({ default: m.YamlEditor })));
@@ -20,19 +21,22 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { db } from '../db';
 import { resetHydration } from '../lib/hydrate';
 import { cn } from '../lib/utils';
+import { setLanguage, getLanguageSetting } from '../i18n';
 
-type SettingsTab = 'profiles' | 'repositories' | 'token' | 'cache' | 'import-export';
+type SettingsTab = 'profiles' | 'repositories' | 'token' | 'cache' | 'import-export' | 'language';
 
-const TABS: { id: SettingsTab; label: string; icon: typeof User }[] = [
-  { id: 'profiles', label: 'Profiles', icon: User },
-  { id: 'repositories', label: 'Repositories', icon: BookOpen },
-  { id: 'token', label: 'Access Token', icon: Key },
-  { id: 'cache', label: 'Cache & Data', icon: Database },
-  { id: 'import-export', label: 'Import / Export', icon: FileUp },
+const TAB_DEFS: { id: SettingsTab; labelKey: string; icon: typeof User }[] = [
+  { id: 'profiles', labelKey: 'settings.tab.profiles', icon: User },
+  { id: 'repositories', labelKey: 'settings.tab.repositories', icon: BookOpen },
+  { id: 'token', labelKey: 'settings.tab.token', icon: Key },
+  { id: 'cache', labelKey: 'settings.tab.cache', icon: Database },
+  { id: 'import-export', labelKey: 'settings.tab.importExport', icon: FileUp },
+  { id: 'language', labelKey: 'settings.tab.language', icon: Languages },
 ];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<SettingsTab>('profiles');
   const [profiles, setProfilesList] = useState<Profile[]>([]);
   const [activeProfile, setActiveProfileState] = useState<Profile | null>(null);
@@ -96,7 +100,7 @@ export default function SettingsPage() {
   }
 
   async function handleCreateProfile(type: 'local' | 'github') {
-    const name = type === 'local' ? 'New Local Profile' : 'New GitHub Profile';
+    const name = type === 'local' ? t('settings.profiles.newLocal') : t('settings.profiles.newGithub');
     const profile = await createProfile(name, type);
     await switchProfile(profile.id);
     await refreshProfiles();
@@ -126,7 +130,7 @@ export default function SettingsPage() {
     try {
       await switchProfile(id);
       await refreshProfiles();
-      setSuccess('Profile switched');
+      setSuccess(t('settings.profiles.switched'));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -144,7 +148,7 @@ export default function SettingsPage() {
       else await clearPat();
 
       if (activeProfile.type === 'github') {
-        if (!githubRepo.trim()) { setError('Please enter a config repo URL'); setSaving(false); return; }
+        if (!githubRepo.trim()) { setError(t('settings.repos.enterConfigRepo')); setSaving(false); return; }
         await updateProfile(activeProfile.id, { githubRepo: githubRepo.trim() });
       } else {
         const yamlContent = editorTab === 'yaml' ? yamlText : repoConfigsToYaml(localRepos);
@@ -152,7 +156,7 @@ export default function SettingsPage() {
       }
       await switchProfile(activeProfile.id);
       await refreshProfiles();
-      setSuccess('Saved & syncing...');
+      setSuccess(t('settings.repos.saved'));
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -184,10 +188,10 @@ export default function SettingsPage() {
       const repos = await importFromGithub(importGithubUrl.trim());
       setLocalRepos(repos);
       setYamlText(repoConfigsToYaml(repos));
-      setSuccess(`Imported ${repos.length} repos from GitHub`);
+      setSuccess(t('settings.ie.importedGithub', { count: repos.length }));
       setImportGithubUrl('');
     } catch (err) {
-      setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+      setError(t('settings.ie.importFailed', { error: err instanceof Error ? err.message : String(err) }));
     } finally {
       setImporting(false);
     }
@@ -204,9 +208,9 @@ export default function SettingsPage() {
         setLocalRepos(repos);
         setYamlText(content);
         setYamlError(null);
-        setSuccess(`Imported ${repos.length} repos from file`);
+        setSuccess(t('settings.ie.importedFile', { count: repos.length }));
       } catch (err) {
-        setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+        setError(t('settings.ie.importFailed', { error: err instanceof Error ? err.message : String(err) }));
       }
     };
     reader.readAsText(file);
@@ -244,7 +248,7 @@ export default function SettingsPage() {
     useAppStore.getState().setRepos(await db.repos.toArray());
     useAppStore.getState().clearFileTree();
     await refreshProfiles();
-    setSuccess('Cache cleared.');
+    setSuccess(t('settings.cache.cleared'));
   }
 
   async function handleResetAll() {
@@ -261,7 +265,7 @@ export default function SettingsPage() {
     setLocalRepos([]);
     setPatValue('');
     setCacheStats({ files: 0, links: 0 });
-    setSuccess('All data reset.');
+    setSuccess(t('settings.cache.resetDone'));
   }
 
   const repos = useAppStore((s) => s.repos);
@@ -274,7 +278,7 @@ export default function SettingsPage() {
           <button onClick={() => navigate('/')} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-semibold">Settings</span>
+          <span className="text-sm font-semibold">{t('settings.title')}</span>
         </div>
         <ThemeToggle />
       </header>
@@ -282,39 +286,39 @@ export default function SettingsPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar nav */}
         <nav className="w-52 shrink-0 border-r bg-sidebar-background p-4 space-y-1 hidden md:block">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Configuration</p>
-          {TABS.map((t) => (
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('settings.configuration')}</p>
+          {TAB_DEFS.map((td) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={td.id}
+              onClick={() => setTab(td.id)}
               className={cn(
                 'flex items-center gap-2 w-full px-2.5 py-2 text-sm rounded-md transition-colors',
-                tab === t.id
+                tab === td.id
                   ? 'bg-accent text-foreground font-medium'
                   : 'text-muted-foreground hover:bg-accent/50'
               )}
             >
-              <t.icon className="h-4 w-4" />
-              {t.label}
+              <td.icon className="h-4 w-4" />
+              {t(td.labelKey)}
             </button>
           ))}
         </nav>
 
         {/* Mobile tab bar */}
         <div className="flex md:hidden border-b overflow-x-auto shrink-0 bg-background absolute top-11 left-0 right-0 z-10">
-          {TABS.map((t) => (
+          {TAB_DEFS.map((td) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={td.id}
+              onClick={() => setTab(td.id)}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 text-xs whitespace-nowrap border-b-2 transition-colors',
-                tab === t.id
+                tab === td.id
                   ? 'border-foreground text-foreground font-medium'
                   : 'border-transparent text-muted-foreground'
               )}
             >
-              <t.icon className="h-3.5 w-3.5" />
-              {t.label}
+              <td.icon className="h-3.5 w-3.5" />
+              {t(td.labelKey)}
             </button>
           ))}
         </div>
@@ -366,6 +370,8 @@ export default function SettingsPage() {
 
             {tab === 'cache' && <CacheTab stats={cacheStats} onClearCache={handleClearCache} onResetAll={handleResetAll} />}
 
+            {tab === 'language' && <LanguageTab />}
+
             {tab === 'import-export' && <ImportExportTab
               importGithubUrl={importGithubUrl}
               importing={importing}
@@ -396,6 +402,41 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
   return <div className={cn('border rounded-lg bg-card', className)}>{children}</div>;
 }
 
+/* -- Language Tab -- */
+function LanguageTab() {
+  const { t } = useTranslation();
+  const [lang, setLang] = useState(getLanguageSetting);
+
+  function handleChange(value: 'en' | 'zh' | 'system') {
+    setLang(value);
+    setLanguage(value);
+  }
+
+  return (
+    <>
+      <SectionHeader title={t('settings.lang.title')} desc={t('settings.lang.desc')} />
+      <hr className="border-border" />
+      <Card className="p-5 space-y-2">
+        {(['system', 'en', 'zh'] as const).map((opt) => {
+          const label = opt === 'system' ? t('settings.lang.followSystem') : t(`settings.lang.${opt}`);
+          return (
+            <label key={opt} className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-accent/50 cursor-pointer">
+              <input
+                type="radio"
+                name="language"
+                checked={lang === opt}
+                onChange={() => handleChange(opt)}
+                className="w-4 h-4 accent-primary"
+              />
+              <span className="text-sm">{label}</span>
+            </label>
+          );
+        })}
+      </Card>
+    </>
+  );
+}
+
 /* -- Profiles Tab -- */
 function ProfilesTab({ profiles, activeProfile, editingName, newName, saving, onSelect, onCreate, onRename, onDelete, onEditStart, onNameChange }: {
   profiles: Profile[];
@@ -410,19 +451,20 @@ function ProfilesTab({ profiles, activeProfile, editingName, newName, saving, on
   onEditStart: (id: string, name: string) => void;
   onNameChange: (name: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <SectionHeader title="Profiles" desc="Switch between GitHub config repos and local YAML profiles." />
+      <SectionHeader title={t('settings.profiles.title')} desc={t('settings.profiles.desc')} />
       <hr className="border-border" />
       <Card>
         <div className="flex items-center justify-between px-5 py-3 border-b">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">All profiles</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('settings.profiles.all')}</span>
           <div className="flex gap-1">
             <button onClick={() => onCreate('local')} className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded-md hover:bg-accent">
-              <HardDrive className="h-3 w-3" /> + Local
+              <HardDrive className="h-3 w-3" /> {t('settings.profiles.addLocal')}
             </button>
             <button onClick={() => onCreate('github')} className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded-md hover:bg-accent">
-              <Globe className="h-3 w-3" /> + GitHub
+              <Globe className="h-3 w-3" /> {t('settings.profiles.addGithub')}
             </button>
           </div>
         </div>
@@ -480,7 +522,7 @@ function ProfilesTab({ profiles, activeProfile, editingName, newName, saving, on
           );
         })}
         {profiles.length === 0 && (
-          <p className="px-5 py-6 text-sm text-muted-foreground text-center">No profiles yet. Create one to get started.</p>
+          <p className="px-5 py-6 text-sm text-muted-foreground text-center">{t('settings.profiles.empty')}</p>
         )}
       </Card>
     </>
@@ -509,23 +551,24 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
   onSave: () => void;
   saving: boolean;
 }) {
-  if (!activeProfile) return <p className="text-sm text-muted-foreground">No active profile. Select one in the Profiles tab.</p>;
+  const { t } = useTranslation();
+  if (!activeProfile) return <p className="text-sm text-muted-foreground">{t('settings.repos.noProfile')}</p>;
 
   return (
     <>
-      <SectionHeader title="Repositories" desc="Manage which GitHub repositories are synced in the active profile." />
+      <SectionHeader title={t('settings.repos.title')} desc={t('settings.repos.desc')} />
       <hr className="border-border" />
 
       {activeProfile.type === 'github' ? (
         <Card className="p-5 space-y-3">
           <label className="text-xs font-medium text-muted-foreground">
-            GitHub repo containing <code className="bg-muted px-1 rounded">gleaner.yaml</code>
+            {t('settings.repos.githubLabel')} <code className="bg-muted px-1 rounded">gleaner.yaml</code>
           </label>
           <input
             type="text"
             value={githubRepo}
             onChange={(e) => onGithubRepoChange(e.target.value)}
-            placeholder="owner/repo"
+            placeholder={t('settings.repos.ownerRepo')}
             className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </Card>
@@ -537,13 +580,13 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                 onClick={() => onTabSwitch('form')}
                 className={cn('flex items-center gap-1 px-3 py-1.5 text-xs', editorTab === 'form' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
               >
-                <List className="h-3 w-3" /> Form
+                <List className="h-3 w-3" /> {t('settings.repos.form')}
               </button>
               <button
                 onClick={() => onTabSwitch('yaml')}
                 className={cn('flex items-center gap-1 px-3 py-1.5 text-xs', editorTab === 'yaml' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
               >
-                <Code className="h-3 w-3" /> YAML
+                <Code className="h-3 w-3" /> {t('settings.repos.yaml')}
               </button>
             </div>
           </div>
@@ -555,9 +598,9 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
           ) : (
             <Card>
               <div className="px-5 py-3 border-b flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repositories in this profile</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('settings.repos.listTitle')}</span>
                 <button onClick={onAddRepo} className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded-md hover:bg-accent">
-                  <Plus className="h-3 w-3" /> Add
+                  <Plus className="h-3 w-3" /> {t('settings.repos.add')}
                 </button>
               </div>
               {localRepos.map((repo, idx) => {
@@ -590,18 +633,18 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                         type="text"
                         value={repo.url}
                         onChange={(e) => onUpdateRepo(idx, 'url', e.target.value)}
-                        placeholder="owner/repo"
+                        placeholder={t('settings.repos.ownerRepo')}
                         className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
                       />
                       {syncInfo && (
-                        <span className="text-[11px] text-muted-foreground">{syncInfo.cachedFiles}/{syncInfo.totalFiles} files</span>
+                        <span className="text-[11px] text-muted-foreground">{syncInfo.cachedFiles}/{syncInfo.totalFiles} {t('files')}</span>
                       )}
                     </div>
                     <input
                       type="text"
                       value={repo.label}
                       onChange={(e) => onUpdateRepo(idx, 'label', e.target.value)}
-                      placeholder="Label"
+                      placeholder={t('settings.repos.label')}
                       className="w-24 text-sm text-right bg-transparent outline-none placeholder:text-muted-foreground"
                     />
                     <button onClick={() => onRemoveRepo(idx)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0">
@@ -611,7 +654,7 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                 );
               })}
               {localRepos.length === 0 && (
-                <p className="px-5 py-6 text-sm text-muted-foreground text-center">No repositories. Click Add to get started.</p>
+                <p className="px-5 py-6 text-sm text-muted-foreground text-center">{t('settings.repos.empty')}</p>
               )}
             </Card>
           )}
@@ -624,7 +667,7 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-        Save & Sync
+        {t('settings.repos.saveSync')}
       </button>
     </>
   );
@@ -637,31 +680,32 @@ function TokenTab({ pat, onPatChange, onSave, saving }: {
   onSave: () => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <SectionHeader title="Access Token" desc="Configure a GitHub Personal Access Token for higher API rate limits." />
+      <SectionHeader title={t('settings.token.title')} desc={t('settings.token.desc')} />
       <hr className="border-border" />
       <Card className="p-5 space-y-4">
         <div className="flex gap-2">
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">optional</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">public repos only</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">{t('settings.token.optional')}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">{t('settings.token.publicOnly')}</span>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Without a token, you're limited to 60 API requests per hour. A fine-grained PAT with read-only Contents scope increases this to 5,000/hr. Required for private repos.
+          {t('settings.token.info')}
         </p>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Personal Access Token</label>
+          <label className="text-xs font-medium">{t('settings.token.label')}</label>
           <div className="flex items-center gap-2 border rounded-md bg-muted/30 px-3 py-2">
             <Key className="h-4 w-4 text-muted-foreground shrink-0" />
             <input
               type="password"
               value={pat}
               onChange={(e) => onPatChange(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              placeholder={t('settings.token.placeholder')}
               className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">Generate at github.com/settings/tokens — select Fine-grained, read-only Contents.</p>
+          <p className="text-[11px] text-muted-foreground">{t('settings.token.hint')}</p>
         </div>
         <button
           onClick={onSave}
@@ -669,7 +713,7 @@ function TokenTab({ pat, onPatChange, onSave, saving }: {
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Save Token
+          {t('settings.token.save')}
         </button>
       </Card>
     </>
@@ -682,47 +726,48 @@ function CacheTab({ stats, onClearCache, onResetAll }: {
   onClearCache: () => void;
   onResetAll: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <SectionHeader title="Cache & Data" desc="Manage cached content and reset application data." />
+      <SectionHeader title={t('settings.cache.title')} desc={t('settings.cache.desc')} />
       <hr className="border-border" />
       <Card className="p-5 space-y-4">
-        <h3 className="text-sm font-semibold">Cached Files</h3>
+        <h3 className="text-sm font-semibold">{t('settings.cache.filesTitle')}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Gleaner caches file content locally in IndexedDB for offline access and faster loading. Clearing the cache will re-download all files on next sync.
+          {t('settings.cache.filesDesc')}
         </p>
         <div className="grid grid-cols-3 gap-3">
           <div className="border rounded-lg p-3 bg-muted/30">
             <div className="text-xl font-bold">{stats.files.toLocaleString()}</div>
-            <div className="text-[11px] text-muted-foreground">Files cached</div>
+            <div className="text-[11px] text-muted-foreground">{t('settings.cache.filesCached')}</div>
           </div>
           <div className="border rounded-lg p-3 bg-muted/30">
             <div className="text-xl font-bold">{stats.links.toLocaleString()}</div>
-            <div className="text-[11px] text-muted-foreground">Links resolved</div>
+            <div className="text-[11px] text-muted-foreground">{t('settings.cache.linksResolved')}</div>
           </div>
           <div className="border rounded-lg p-3 bg-muted/30">
             <div className="text-xl font-bold">—</div>
-            <div className="text-[11px] text-muted-foreground">Storage used</div>
+            <div className="text-[11px] text-muted-foreground">{t('settings.cache.storageUsed')}</div>
           </div>
         </div>
         <button
           onClick={onClearCache}
           className="flex items-center gap-2 px-4 py-2 text-sm border rounded-md hover:bg-accent"
         >
-          <Trash2 className="h-4 w-4" /> Clear Cache
+          <Trash2 className="h-4 w-4" /> {t('settings.cache.clear')}
         </button>
       </Card>
 
       <Card className="p-5 space-y-3 border-destructive/50">
-        <h3 className="text-sm font-semibold text-destructive">Danger Zone</h3>
+        <h3 className="text-sm font-semibold text-destructive">{t('settings.cache.danger')}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          This will permanently delete all cached data, profiles, tokens, and preferences. This action cannot be undone.
+          {t('settings.cache.dangerDesc')}
         </p>
         <button
           onClick={onResetAll}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"
         >
-          <Trash2 className="h-4 w-4" /> Reset All Data
+          <Trash2 className="h-4 w-4" /> {t('settings.cache.resetAll')}
         </button>
       </Card>
     </>
@@ -738,19 +783,20 @@ function ImportExportTab({ importGithubUrl, importing, onImportGithubUrlChange, 
   onImportFromFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onExport: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
-      <SectionHeader title="Import / Export" desc="Transfer profile configurations between devices or back up to GitHub." />
+      <SectionHeader title={t('settings.ie.title')} desc={t('settings.ie.desc')} />
       <hr className="border-border" />
 
       <Card className="p-5 space-y-4">
-        <h3 className="text-sm font-semibold">Import Configuration</h3>
+        <h3 className="text-sm font-semibold">{t('settings.ie.importTitle')}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Load a gleaner.yaml file from your local machine or pull from a GitHub config repo.
+          {t('settings.ie.importDesc')}
         </p>
         <div className="flex flex-wrap gap-2">
           <label className="flex items-center gap-2 px-4 py-2 text-sm border rounded-md hover:bg-accent cursor-pointer">
-            <Upload className="h-4 w-4" /> Import from File
+            <Upload className="h-4 w-4" /> {t('settings.ie.importFile')}
             <input type="file" accept=".yaml,.yml" onChange={onImportFromFile} className="hidden" />
           </label>
           <button
@@ -759,25 +805,25 @@ function ImportExportTab({ importGithubUrl, importing, onImportGithubUrlChange, 
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
           >
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-            Import from GitHub
+            {t('settings.ie.importGithub')}
           </button>
         </div>
         <input
           type="text"
           value={importGithubUrl}
           onChange={(e) => onImportGithubUrlChange(e.target.value)}
-          placeholder="owner/repo (import gleaner.yaml from this repo)"
+          placeholder={t('settings.ie.importPlaceholder')}
           className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </Card>
 
       <Card className="p-5 space-y-4">
-        <h3 className="text-sm font-semibold">Export Configuration</h3>
+        <h3 className="text-sm font-semibold">{t('settings.ie.exportTitle')}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Download the current profile's configuration as a gleaner.yaml file.
+          {t('settings.ie.exportDesc')}
         </p>
         <button onClick={onExport} className="flex items-center gap-2 px-4 py-2 text-sm border rounded-md hover:bg-accent">
-          <Download className="h-4 w-4" /> Export YAML
+          <Download className="h-4 w-4" /> {t('settings.ie.exportYaml')}
         </button>
       </Card>
     </>

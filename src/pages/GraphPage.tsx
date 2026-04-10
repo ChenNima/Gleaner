@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ForceGraph2D from 'react-force-graph-2d';
 import { getActiveFiles, getActiveLinks } from '../db';
 import { useThemeStore } from '../stores/theme';
@@ -14,6 +15,7 @@ import {
 
 export default function GraphPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [rawData, setRawData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
   const [repoColors, setRepoColors] = useState<Map<string, string>>(new Map());
   const [hoverNode, setHoverNode] = useState<string | null>(null);
@@ -177,10 +179,10 @@ export default function GraphPage() {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between h-8 px-3 border-b bg-background/80 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium">Graph view</span>
+          <span className="text-xs font-medium">{t('graph.title')}</span>
           {hasData && (
             <span className="text-xs text-muted-foreground">
-              {data.nodes.length} notes &middot; {data.links.length} links
+              {data.nodes.length} {t('graph.notes')} &middot; {data.links.length} {t('graph.links')}
             </span>
           )}
         </div>
@@ -193,7 +195,7 @@ export default function GraphPage() {
           ))}
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rotate-45" style={{ backgroundColor: isDark ? EXTERNAL_COLOR_DARK : EXTERNAL_COLOR_LIGHT }} />
-            <span className="text-muted-foreground">External</span>
+            <span className="text-muted-foreground">{t('graph.external')}</span>
           </div>
         </div>
       </div>
@@ -205,8 +207,8 @@ export default function GraphPage() {
       >
         {!hasData && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-muted-foreground">
-            <p>No files synced yet.</p>
-            <Link to="/settings" className="text-primary hover:underline text-sm">Go to Settings</Link>
+            <p>{t('graph.noFiles')}</p>
+            <Link to="/settings" className="text-primary hover:underline text-sm">{t('graph.goToSettings')}</Link>
           </div>
         )}
         {/* Control panel */}
@@ -219,7 +221,7 @@ export default function GraphPage() {
                 onChange={(e) => setShowExternalLinks(e.target.checked)}
                 className="w-3 h-3 rounded"
               />
-              <span className="text-muted-foreground">External links</span>
+              <span className="text-muted-foreground">{t('graph.externalLinks')}</span>
             </label>
             {groups.length > 0 && (
               <>

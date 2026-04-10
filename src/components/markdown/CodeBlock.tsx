@@ -1,4 +1,5 @@
 import { useState, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
 
 interface CodeBlockProps {
@@ -11,6 +12,7 @@ interface CodeBlockProps {
 export function CodeBlock({ children, className, ...rest }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const preRef = useRef<HTMLPreElement>(null);
+  const { t } = useTranslation();
 
   // Extract language from child <code> className like "hljs language-ts"
   let language = '';
@@ -43,7 +45,7 @@ export function CodeBlock({ children, className, ...rest }: CodeBlockProps) {
         <button
           onClick={handleCopy}
           className="p-1 rounded bg-background/60 text-muted-foreground hover:text-foreground backdrop-blur-sm"
-          title="Copy code"
+          title={t('md.copyCode')}
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </button>

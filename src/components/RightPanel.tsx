@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link2, Network } from 'lucide-react';
 import { BacklinksPanel } from './BacklinksPanel';
 import { LocalGraph } from './LocalGraph';
@@ -12,6 +13,7 @@ type Tab = 'links' | 'graph';
 
 export function RightPanel({ fileId }: RightPanelProps) {
   const [tab, setTab] = useState<Tab>('links');
+  const { t } = useTranslation();
 
   return (
     <div className="flex flex-col h-full">
@@ -27,7 +29,7 @@ export function RightPanel({ fileId }: RightPanelProps) {
           )}
         >
           <Link2 className="h-3 w-3" />
-          Links
+          {t('panel.links')}
         </button>
         <button
           onClick={() => setTab('graph')}
@@ -39,7 +41,7 @@ export function RightPanel({ fileId }: RightPanelProps) {
           )}
         >
           <Network className="h-3 w-3" />
-          Graph
+          {t('panel.graph')}
         </button>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronRight,
   ChevronDown,
@@ -173,6 +174,7 @@ function TreeNodeItem({
 }
 
 function RepoSyncStatus({ repo }: { repo: Repo }) {
+  const { t } = useTranslation();
   if (repo.syncStatus === 'syncing') {
     return (
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -187,7 +189,7 @@ function RepoSyncStatus({ repo }: { repo: Repo }) {
     return (
       <div className="flex items-center gap-1 text-xs text-destructive">
         <AlertCircle className="h-3 w-3" />
-        <span>Error</span>
+        <span>{t('error')}</span>
       </div>
     );
   }
@@ -204,6 +206,7 @@ function RepoSyncStatus({ repo }: { repo: Repo }) {
 
 function RepoSection({ repo, onRetry, defaultExpanded = true }: { repo: Repo; onRetry?: (fullName: string) => void; defaultExpanded?: boolean }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const { t } = useTranslation();
   const fileTree = useAppStore((s) => s.fileTree);
   const focusTree = useAppStore((s) => s.focusTreePath);
   const files = fileTree.get(repo.fullName) ?? [];
@@ -240,19 +243,19 @@ function RepoSection({ repo, onRetry, defaultExpanded = true }: { repo: Repo; on
         <div>
           {repo.syncStatus === 'error' && (
             <div className="px-3 py-2 text-xs text-destructive">
-              <p className="truncate">{repo.syncError ?? 'Sync failed'}</p>
+              <p className="truncate">{repo.syncError ?? t('tree.syncFailed')}</p>
               <button
                 onClick={() => onRetry?.(repo.fullName)}
                 className="flex items-center gap-1 mt-1 text-muted-foreground hover:text-foreground"
               >
                 <RefreshCw className="h-3 w-3" />
-                Retry
+                {t('retry')}
               </button>
             </div>
           )}
           {tree.length === 0 && repo.syncStatus !== 'error' && (
             <p className="px-3 py-2 text-xs text-muted-foreground">
-              {repo.syncStatus === 'syncing' ? 'Syncing...' : 'No .md files found'}
+              {repo.syncStatus === 'syncing' ? t('tree.syncing') : t('tree.noMdFiles')}
             </p>
           )}
           {tree.map((node) => (
@@ -274,16 +277,17 @@ function RepoSection({ repo, onRetry, defaultExpanded = true }: { repo: Repo; on
 export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) {
   const repos = useAppStore((s) => s.repos);
   const [collapseKey, setCollapseKey] = useState(0);
+  const { t } = useTranslation();
 
   if (repos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-        <p className="text-sm text-muted-foreground mb-2">No repositories configured</p>
+        <p className="text-sm text-muted-foreground mb-2">{t('tree.noRepos')}</p>
         <a
           href="/settings"
           className="text-sm text-primary hover:underline"
         >
-          Go to Settings to add a config repo
+          {t('tree.goToSettings')}
         </a>
       </div>
     );
@@ -294,7 +298,7 @@ export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) 
       <div className="flex justify-end px-2 mb-1">
         <button
           onClick={() => setCollapseKey((k) => k + 1)}
-          title="Collapse All"
+          title={t('tree.collapseAll')}
           className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
         >
           <FoldVertical className="h-3.5 w-3.5" />

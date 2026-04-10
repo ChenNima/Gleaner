@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ForceGraph2D from 'react-force-graph-2d';
 import { db, getActiveRepoNames } from '../db';
 import { useThemeStore } from '../stores/theme';
@@ -128,9 +129,11 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
     [navigate]
   );
 
+  const { t } = useTranslation();
+
   let overlay: string | null = null;
-  if (!fileId) overlay = 'No file selected';
-  else if (data.nodes.length === 0) overlay = 'No connections';
+  if (!fileId) overlay = t('localGraph.noFile');
+  else if (data.nodes.length === 0) overlay = t('localGraph.noConnections');
 
   const rc: RenderContext = {
     isDark,

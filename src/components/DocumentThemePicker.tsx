@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Palette, ChevronDown } from 'lucide-react';
 import { useThemeStore } from '../stores/theme';
 import { markdownThemes } from '../lib/markdown-themes';
@@ -9,7 +10,8 @@ export function DocumentThemePicker() {
   const markdownTheme = useThemeStore((s) => s.markdownTheme);
   const setMarkdownTheme = useThemeStore((s) => s.setMarkdownTheme);
 
-  const current = markdownThemes.find((t) => t.id === markdownTheme) ?? markdownThemes[0];
+  const { t } = useTranslation();
+  const current = markdownThemes.find((th) => th.id === markdownTheme) ?? markdownThemes[0];
 
   // Close on outside click
   useEffect(() => {
@@ -26,27 +28,27 @@ export function DocumentThemePicker() {
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border hover:bg-accent text-foreground text-xs"
-        title="Document theme"
+        title={t('theme.documentTheme')}
       >
         <Palette className="h-3.5 w-3.5 text-primary" />
-        <span>{current.label}</span>
+        <span>{t(`mdTheme.${current.id}`)}</span>
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-popover border rounded-md shadow-md py-1 min-w-[180px]">
-          {markdownThemes.map((t) => (
+          {markdownThemes.map((th) => (
             <button
-              key={t.id}
+              key={th.id}
               onClick={() => {
-                setMarkdownTheme(t.id);
+                setMarkdownTheme(th.id);
                 setOpen(false);
               }}
               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent ${
-                t.id === current.id ? 'text-foreground font-medium' : 'text-muted-foreground'
+                th.id === current.id ? 'text-foreground font-medium' : 'text-muted-foreground'
               }`}
             >
-              <div>{t.label}</div>
-              <div className="text-[10px] text-muted-foreground">{t.description}</div>
+              <div>{t(`mdTheme.${th.id}`)}</div>
+              <div className="text-[10px] text-muted-foreground">{t(`mdTheme.${th.id}.desc`)}</div>
             </button>
           ))}
         </div>

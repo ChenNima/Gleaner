@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FileText, ArrowDownLeft, ArrowUpRight, Globe } from 'lucide-react';
 import { getBacklinks, getOutgoingLinks, getExternalLinks } from '../lib/wikilink-parser';
 import type { MdFile } from '../db';
@@ -28,6 +29,7 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
   const [outgoing, setOutgoing] = useState<OutgoingEntry[]>([]);
   const [external, setExternal] = useState<ExternalEntry[]>([]);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!fileId) {
@@ -44,7 +46,7 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
   if (!fileId) {
     return (
       <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-        No file selected
+        {t('backlinks.noFile')}
       </div>
     );
   }
@@ -60,10 +62,10 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
       <div>
         <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           <ArrowDownLeft className="h-3 w-3" />
-          Backlinks {backlinks.length > 0 && `(${backlinks.length})`}
+          {t('backlinks.title')} {backlinks.length > 0 && `(${backlinks.length})`}
         </h3>
         {backlinks.length === 0 ? (
-          <p className="text-xs text-muted-foreground pl-4">No backlinks</p>
+          <p className="text-xs text-muted-foreground pl-4">{t('backlinks.none')}</p>
         ) : (
           <div className="space-y-1">
             {backlinks.map((bl) => (
@@ -84,10 +86,10 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
       <div>
         <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           <ArrowUpRight className="h-3 w-3" />
-          Outgoing links {outgoing.length > 0 && `(${outgoing.length})`}
+          {t('backlinks.outgoing')} {outgoing.length > 0 && `(${outgoing.length})`}
         </h3>
         {outgoing.length === 0 ? (
-          <p className="text-xs text-muted-foreground pl-4">No outgoing links</p>
+          <p className="text-xs text-muted-foreground pl-4">{t('backlinks.noOutgoing')}</p>
         ) : (
           <div className="space-y-1">
             {outgoing.map((ol) => (
@@ -109,7 +111,7 @@ export function BacklinksPanel({ fileId }: BacklinksPanelProps) {
         <div>
           <h3 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             <Globe className="h-3 w-3" />
-            External links ({external.length})
+            {t('backlinks.external')} ({external.length})
           </h3>
           <div className="space-y-1">
             {external.map((el) => (
