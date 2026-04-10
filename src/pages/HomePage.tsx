@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getConfigRepo, syncConfig } from '../lib/config';
-import { syncAllRepos } from '../lib/sync';
+import { getActiveProfile, switchProfile } from '../lib/profile';
 import { useAppStore } from '../stores/app';
 import { Loader2 } from 'lucide-react';
 
@@ -12,21 +11,17 @@ export default function HomePage() {
 
   useEffect(() => {
     (async () => {
-      const configRepo = await getConfigRepo();
-      if (!configRepo) {
+      const profile = await getActiveProfile();
+      if (!profile) {
         navigate('/settings', { replace: true });
         return;
       }
 
       setLoading(false);
 
-      // Background sync
+      // Background sync via profile system
       try {
-        const synced = await syncConfig();
-        useAppStore.getState().setRepos(synced);
-        syncAllRepos((repo) => {
-          useAppStore.getState().updateRepo(repo.fullName, repo);
-        });
+        await switchProfile(profile.id);
       } catch {
         // Config might be stale, still show what we have
       }

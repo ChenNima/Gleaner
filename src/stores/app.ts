@@ -1,8 +1,13 @@
 import { create } from 'zustand';
-import type { Repo, MdFile } from '../db';
+import type { Repo, MdFile, Profile } from '../db';
 import { db } from '../db';
 
 interface AppState {
+  profiles: Profile[];
+  activeProfileId: string | null;
+  setProfiles: (profiles: Profile[]) => void;
+  setActiveProfileId: (id: string | null) => void;
+
   repos: Repo[];
   setRepos: (repos: Repo[]) => void;
   updateRepo: (fullName: string, updates: Partial<Repo>) => void;
@@ -35,6 +40,11 @@ function persistWidth(key: string, value: number) {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  profiles: [],
+  activeProfileId: null,
+  setProfiles: (profiles) => set({ profiles }),
+  setActiveProfileId: (id) => set({ activeProfileId: id }),
+
   repos: [],
   setRepos: (repos) => set({ repos }),
   updateRepo: (fullName, updates) =>

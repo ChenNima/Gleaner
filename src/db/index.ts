@@ -36,11 +36,22 @@ export interface WikiLink {
   targetUrl?: string | null;
 }
 
+export interface Profile {
+  id: string;
+  name: string;
+  type: 'local' | 'github';
+  yamlContent: string | null;
+  githubRepo: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class GleanerDB extends Dexie {
   config!: Table<ConfigEntry, string>;
   repos!: Table<Repo, string>;
   files!: Table<MdFile, string>;
   links!: Table<WikiLink, number>;
+  profiles!: Table<Profile, string>;
 
   constructor() {
     super('gleaner');
@@ -55,6 +66,13 @@ class GleanerDB extends Dexie {
       repos: '&fullName, label',
       files: '&id, repoFullName, path, sha',
       links: '++id, sourceFileId, targetTitle, targetFileId, isExternal',
+    });
+    this.version(3).stores({
+      config: '&key',
+      repos: '&fullName, label',
+      files: '&id, repoFullName, path, sha',
+      links: '++id, sourceFileId, targetTitle, targetFileId, isExternal',
+      profiles: '&id, name',
     });
   }
 }

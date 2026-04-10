@@ -7,6 +7,7 @@ import { SyncStatus } from './SyncStatus';
 import { FileTree } from './FileTree';
 import { cn } from '../lib/utils';
 import { hydrateStoreFromDB } from '../lib/hydrate';
+import { ProfileSwitcher } from './ProfileSwitcher';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -114,6 +115,7 @@ export function Layout({
           <Link to="/" className="text-sm font-semibold text-foreground">
             Gleaner
           </Link>
+          <ProfileSwitcher />
         </div>
 
         <div className="flex items-center gap-0.5 md:gap-1">
