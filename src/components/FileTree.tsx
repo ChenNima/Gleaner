@@ -89,6 +89,10 @@ function TreeNodeItem({
     } else if (node.file) {
       const [owner, repo] = repoFullName.split('/');
       navigate(`/repo/${owner}/${repo}/${node.path}`);
+      // Close sidebar on mobile
+      if (window.innerWidth < 768) {
+        useAppStore.getState().setLeftSidebarOpen(false);
+      }
     }
   };
 

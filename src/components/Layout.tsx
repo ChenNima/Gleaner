@@ -1,12 +1,26 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Network, Settings } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Network, Settings, X } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import { ThemeToggle } from './ThemeToggle';
 import { SyncStatus } from './SyncStatus';
 import { FileTree } from './FileTree';
 import { cn } from '../lib/utils';
 import { hydrateStoreFromDB } from '../lib/hydrate';
+
+const MOBILE_BREAKPOINT = 768;
+
+function useIsMobile() {
+  const check = () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT;
+  const ref = useRef(check());
+  useEffect(() => {
+    const onResize = () => { ref.current = check(); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  // Return ref so it's always current without re-renders
+  return ref;
+}
 
 function ResizeHandle({ side, widthRef, setWidth, min, max }: {
   side: 'left' | 'right';
@@ -43,7 +57,7 @@ function ResizeHandle({ side, widthRef, setWidth, min, max }: {
   return (
     <div
       onMouseDown={onMouseDown}
-      className="w-1 shrink-0 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors"
+      className="w-1 shrink-0 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors hidden md:block"
     />
   );
 }
@@ -55,8 +69,15 @@ export function Layout({
   children: React.ReactNode;
   rightPanel?: React.ReactNode;
 }) {
+  const isMobileRef = useIsMobile();
+
   useEffect(() => {
     hydrateStoreFromDB();
+    // Close sidebars on mobile by default
+    if (isMobileRef.current) {
+      useAppStore.getState().setLeftSidebarOpen(false);
+      useAppStore.getState().setRightSidebarOpen(false);
+    }
   }, []);
 
   const leftOpen = useAppStore((s) => s.leftSidebarOpen);
@@ -69,7 +90,6 @@ export function Layout({
   const setRightWidth = useAppStore((s) => s.setRightSidebarWidth);
   const location = useLocation();
 
-  // Use refs so mousemove handler always reads current width
   const leftWidthRef = useRef(leftWidth);
   leftWidthRef.current = leftWidth;
   const rightWidthRef = useRef(rightWidth);
@@ -78,8 +98,8 @@ export function Layout({
   return (
     <div className="flex flex-col h-screen">
       {/* Top navbar */}
-      <header className="flex items-center justify-between h-11 px-3 border-b bg-background shrink-0">
-        <div className="flex items-center gap-2">
+      <header className="flex items-center justify-between h-11 px-2 md:px-3 border-b bg-background shrink-0">
+        <div className="flex items-center gap-1.5 md:gap-2">
           <button
             onClick={toggleLeft}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground"
@@ -96,7 +116,7 @@ export function Layout({
           </Link>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 md:gap-1">
           <SyncStatus />
           <Link
             to="/graph"
@@ -134,14 +154,29 @@ export function Layout({
       </header>
 
       {/* Three-column layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar - file tree */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Left sidebar - overlay on mobile, inline on desktop */}
         {leftOpen && (
           <>
+            {/* Backdrop on mobile */}
+            <div
+              className="fixed inset-0 bg-black/40 z-30 md:hidden"
+              onClick={toggleLeft}
+            />
             <aside
-              className="shrink-0 border-r overflow-y-auto bg-sidebar-background text-sidebar-foreground"
-              style={{ width: leftWidth }}
+              className={cn(
+                'shrink-0 border-r overflow-y-auto bg-sidebar-background text-sidebar-foreground z-40',
+                'fixed inset-y-0 left-0 top-11 md:relative md:top-0'
+              )}
+              style={{ width: isMobileRef.current ? 280 : leftWidth }}
             >
+              {/* Close button on mobile */}
+              <div className="flex items-center justify-between px-2 py-1.5 border-b md:hidden">
+                <span className="text-xs font-semibold text-muted-foreground">Files</span>
+                <button onClick={toggleLeft} className="p-1 rounded hover:bg-accent">
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
               <FileTree />
             </aside>
             <ResizeHandle side="left" widthRef={leftWidthRef} setWidth={setLeftWidth} min={160} max={400} />
@@ -151,14 +186,27 @@ export function Layout({
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">{children}</main>
 
-        {/* Right sidebar */}
+        {/* Right sidebar - overlay on mobile, inline on desktop */}
         {rightOpen && (
           <>
             <ResizeHandle side="right" widthRef={rightWidthRef} setWidth={setRightWidth} min={200} max={600} />
+            <div
+              className="fixed inset-0 bg-black/40 z-30 md:hidden"
+              onClick={toggleRight}
+            />
             <aside
-              className="shrink-0 border-l flex flex-col bg-sidebar-background text-sidebar-foreground"
-              style={{ width: rightWidth }}
+              className={cn(
+                'shrink-0 border-l flex flex-col bg-sidebar-background text-sidebar-foreground z-40',
+                'fixed inset-y-0 right-0 top-11 md:relative md:top-0'
+              )}
+              style={{ width: isMobileRef.current ? 300 : rightWidth }}
             >
+              {/* Close button on mobile */}
+              <div className="flex items-center justify-end px-2 py-1.5 border-b md:hidden">
+                <button onClick={toggleRight} className="p-1 rounded hover:bg-accent">
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
               {rightPanel ?? (
                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
                   No backlinks
