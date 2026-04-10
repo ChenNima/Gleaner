@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronRightIcon } from 'lucide-react';
+import { CodeThemePicker } from '../components/CodeThemePicker';
 import { db } from '../db';
 import type { MdFile } from '../db';
 import { getFileContent } from '../lib/github';
@@ -95,7 +96,7 @@ export default function FilePage() {
   return (
     <div className="flex flex-col h-full">
       {/* Breadcrumb bar */}
-      <div className="flex items-center h-8 px-2 border-b bg-background/80 shrink-0 gap-1 text-xs overflow-x-auto">
+      <div className="flex items-center h-8 px-2 border-b bg-background/80 shrink-0 gap-1 text-xs">
         <button
           onClick={() => window.history.back()}
           className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground shrink-0"
@@ -110,7 +111,7 @@ export default function FilePage() {
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
-        <div className="flex items-center gap-0.5 ml-1 min-w-0">
+        <div className="flex items-center gap-0.5 ml-1 min-w-0 overflow-x-auto">
           <button
             onClick={() => handleBreadcrumbClick('')}
             className="text-muted-foreground hover:text-foreground hover:underline truncate shrink-0"
@@ -132,6 +133,9 @@ export default function FilePage() {
               </span>
             );
           })}
+        </div>
+        <div className="ml-auto">
+          <CodeThemePicker />
         </div>
       </div>
       <div className="flex-1 overflow-auto">
