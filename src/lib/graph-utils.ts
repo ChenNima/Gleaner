@@ -10,6 +10,15 @@ export interface GraphNode {
   isCurrent?: boolean;
   isExternal?: boolean;
   url?: string;
+  groupId?: string;
+}
+
+export interface GraphGroup {
+  id: string;
+  type: 'repo' | 'domain';
+  label: string;
+  nodeIds: string[];
+  color: string;
 }
 
 export const EXTERNAL_COLOR_LIGHT = '#d97706';
@@ -118,8 +127,8 @@ export function renderNode(
       ?? (isCurrent ? (rc.isDark ? '#38bdf8' : '#0ea5e9') : (rc.isDark ? '#64748b' : '#94a3b8'));
 
   const compact = rc.compact ?? false;
-  const nodeR = compact ? 1.5 : 3;
-  const baseFont = compact ? 0.9 : 1.8;
+  const nodeR = compact ? 1.2 : 2;
+  const baseFont = compact ? 0.8 : 1.4;
   const gravityR = compact ? 50 : GRAVITY_RADIUS;
   const maxS = compact ? 2 : MAX_SCALE;
 
@@ -242,3 +251,110 @@ export function linkWidth(link: any, hoverNode: string | null): number {
   const t = typeof link.target === 'string' ? link.target : link.target.id;
   return (s === hoverNode || t === hoverNode) ? 1.5 : 0.3;
 }
+
+// --- URL Recognition & Grouping ---
+
+const GITHUB_REPO_RE = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)/;
+
+export function parseExternalUrl(url: string): { type: 'github-repo'; owner: string; repo: string } | { type: 'domain'; domain: string } {
+  const ghMatch = url.match(GITHUB_REPO_RE);
+  if (ghMatch) {
+    return { type: 'github-repo', owner: ghMatch[1], repo: ghMatch[2].replace(/\.git$/, '') };
+  }
+  try {
+    return { type: 'domain', domain: new URL(url).hostname };
+  } catch {
+    return { type: 'domain', domain: url };
+  }
+}
+
+const DOMAIN_COLORS_LIGHT = ['#d97706', '#b45309', '#a16207', '#ca8a04', '#c2410c', '#9a3412'];
+const DOMAIN_COLORS_DARK = ['#fbbf24', '#f59e0b', '#eab308', '#facc15', '#fb923c', '#f97316'];
+
+export function buildGroups(
+  nodes: GraphNode[],
+  links: GraphLink[],
+  repoColors: Map<string, string>,
+  isDark: boolean
+): GraphGroup[] {
+  const nodeById = new Map<string, GraphNode>();
+  for (const n of nodes) nodeById.set(n.id, n);
+
+  // For each external node, find which repos link to it
+  const extSourceRepos = new Map<string, Set<string>>(); // extNodeId → set of repo names
+  for (const link of links) {
+    const src = nodeById.get(link.source);
+    const tgt = nodeById.get(link.target);
+    if (src && tgt?.isExternal && src.repoFullName) {
+      let s = extSourceRepos.get(tgt.id);
+      if (!s) { s = new Set(); extSourceRepos.set(tgt.id, s); }
+      s.add(src.repoFullName);
+    }
+    if (tgt && src?.isExternal && tgt.repoFullName) {
+      let s = extSourceRepos.get(src.id);
+      if (!s) { s = new Set(); extSourceRepos.set(src.id, s); }
+      s.add(tgt.repoFullName);
+    }
+  }
+
+  const groupMap = new Map<string, { type: 'repo' | 'domain'; label: string; nodeIds: string[] }>();
+
+  for (const node of nodes) {
+    if (!node.isExternal) {
+      // Internal file node → group by repoFullName
+      const groupId = `repo::${node.repoFullName}`;
+      if (!groupMap.has(groupId)) {
+        groupMap.set(groupId, { type: 'repo', label: node.repoFullName, nodeIds: [] });
+      }
+      groupMap.get(groupId)!.nodeIds.push(node.id);
+      node.groupId = groupId;
+    } else if (node.url) {
+      const parsed = parseExternalUrl(node.url);
+
+      if (parsed.type === 'github-repo') {
+        const repoName = `${parsed.owner}/${parsed.repo}`;
+        const groupId = `repo::${repoName}`;
+        if (!groupMap.has(groupId)) {
+          groupMap.set(groupId, { type: 'repo', label: repoName, nodeIds: [] });
+        }
+        groupMap.get(groupId)!.nodeIds.push(node.id);
+        node.groupId = groupId;
+      } else {
+        // Domain external node: always fold into source repo's group (if single source)
+        const sourceRepos = extSourceRepos.get(node.id);
+        if (sourceRepos && sourceRepos.size === 1) {
+          const repoName = [...sourceRepos][0];
+          const groupId = `repo::${repoName}`;
+          if (!groupMap.has(groupId)) {
+            groupMap.set(groupId, { type: 'repo', label: repoName, nodeIds: [] });
+          }
+          groupMap.get(groupId)!.nodeIds.push(node.id);
+          node.groupId = groupId;
+        }
+        // Multi-repo external nodes stay ungrouped (no domain groups)
+      }
+    }
+  }
+
+  // Filter: only groups with >= 2 nodes
+  const domainPalette = isDark ? DOMAIN_COLORS_DARK : DOMAIN_COLORS_LIGHT;
+  let domainIdx = 0;
+  const groups: GraphGroup[] = [];
+
+  for (const [id, g] of groupMap) {
+    if (g.nodeIds.length < 2) {
+      for (const nid of g.nodeIds) {
+        const n = nodeById.get(nid);
+        if (n) n.groupId = undefined;
+      }
+      continue;
+    }
+    const color = g.type === 'repo'
+      ? (repoColors.get(g.label) ?? (isDark ? '#64748b' : '#94a3b8'))
+      : domainPalette[domainIdx++ % domainPalette.length];
+    groups.push({ id, type: g.type, label: g.label, nodeIds: g.nodeIds, color });
+  }
+
+  return groups;
+}
+

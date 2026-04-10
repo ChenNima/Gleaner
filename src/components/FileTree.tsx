@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
@@ -10,6 +10,7 @@ import {
   Loader2,
   CheckCircle2,
   RefreshCw,
+  FoldVertical,
 } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import type { Repo, MdFile } from '../db';
@@ -71,14 +72,36 @@ function TreeNodeItem({
   node,
   depth,
   repoFullName,
+  focusPath,
+  focusTs,
 }: {
   node: TreeNode;
   depth: number;
   repoFullName: string;
+  focusPath: string | null;
+  focusTs: number;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  const isFocusTarget = focusPath === node.path;
+  const isOnFocusPath = focusPath ? focusPath.startsWith(node.path + '/') : false;
+  const [expanded, setExpanded] = useState(false);
+  const [highlighted, setHighlighted] = useState(false);
   const navigate = useNavigate();
   const currentFileId = useAppStore((s) => s.currentFileId);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-expand if on the focus path
+  useEffect(() => {
+    if (node.isDir && isOnFocusPath) setExpanded(true);
+  }, [isOnFocusPath, node.isDir, focusTs]);
+
+  // Highlight + scroll into view when this is the focus target
+  useEffect(() => {
+    if (!isFocusTarget) return;
+    setHighlighted(true);
+    btnRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const timer = setTimeout(() => setHighlighted(false), 3000);
+    return () => clearTimeout(timer);
+  }, [isFocusTarget, focusTs]);
 
   const fileId = node.file ? `${repoFullName}::${node.path}` : null;
   const isActive = fileId === currentFileId;
@@ -89,7 +112,6 @@ function TreeNodeItem({
     } else if (node.file) {
       const [owner, repo] = repoFullName.split('/');
       navigate(`/repo/${owner}/${repo}/${node.path}`);
-      // Close sidebar on mobile
       if (window.innerWidth < 768) {
         useAppStore.getState().setLeftSidebarOpen(false);
       }
@@ -99,10 +121,12 @@ function TreeNodeItem({
   return (
     <div>
       <button
+        ref={btnRef}
         onClick={handleClick}
         className={cn(
-          'flex items-center gap-1 w-full text-left px-2 py-1 text-sm hover:bg-accent rounded-sm truncate',
-          isActive && 'bg-accent text-accent-foreground font-medium'
+          'flex items-center gap-1 w-full text-left px-2 py-1 text-sm hover:bg-accent rounded-sm truncate transition-colors duration-500',
+          isActive && 'bg-accent text-accent-foreground font-medium',
+          highlighted && !isActive && 'bg-primary/20 text-primary'
         )}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
@@ -135,6 +159,8 @@ function TreeNodeItem({
               node={child}
               depth={depth + 1}
               repoFullName={repoFullName}
+              focusPath={focusPath}
+              focusTs={focusTs}
             />
           ))}
         </div>
@@ -173,11 +199,23 @@ function RepoSyncStatus({ repo }: { repo: Repo }) {
   return null;
 }
 
-function RepoSection({ repo, onRetry }: { repo: Repo; onRetry?: (fullName: string) => void }) {
-  const [expanded, setExpanded] = useState(true);
+function RepoSection({ repo, onRetry, defaultExpanded = true }: { repo: Repo; onRetry?: (fullName: string) => void; defaultExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const fileTree = useAppStore((s) => s.fileTree);
+  const focusTree = useAppStore((s) => s.focusTreePath);
   const files = fileTree.get(repo.fullName) ?? [];
   const tree = buildTree(files);
+
+  // The focus path for this repo (strip "repoFullName::" prefix)
+  const repoFocusPath = focusTree?.path.startsWith(repo.fullName + '::')
+    ? focusTree.path.slice(repo.fullName.length + 2)
+    : null;
+  const focusTs = focusTree?.ts ?? 0;
+
+  // Auto-expand repo when a path inside it is focused
+  useEffect(() => {
+    if (repoFocusPath) setExpanded(true);
+  }, [repoFocusPath, focusTs]);
 
   return (
     <div className="mb-2">
@@ -220,6 +258,8 @@ function RepoSection({ repo, onRetry }: { repo: Repo; onRetry?: (fullName: strin
               node={node}
               depth={0}
               repoFullName={repo.fullName}
+              focusPath={repoFocusPath}
+              focusTs={focusTs}
             />
           ))}
         </div>
@@ -230,6 +270,7 @@ function RepoSection({ repo, onRetry }: { repo: Repo; onRetry?: (fullName: strin
 
 export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) {
   const repos = useAppStore((s) => s.repos);
+  const [collapseKey, setCollapseKey] = useState(0);
 
   if (repos.length === 0) {
     return (
@@ -247,8 +288,17 @@ export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) 
 
   return (
     <div className="py-2 overflow-y-auto h-full">
+      <div className="flex justify-end px-2 mb-1">
+        <button
+          onClick={() => setCollapseKey((k) => k + 1)}
+          title="Collapse All"
+          className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+        >
+          <FoldVertical className="h-3.5 w-3.5" />
+        </button>
+      </div>
       {repos.map((repo) => (
-        <RepoSection key={repo.fullName} repo={repo} onRetry={onRetry} />
+        <RepoSection key={`${repo.fullName}-${collapseKey}`} repo={repo} onRetry={onRetry} defaultExpanded={collapseKey === 0} />
       ))}
     </div>
   );

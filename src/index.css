@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* All buttons and clickable labels get pointer cursor */
+button, [role="button"], label[class*="cursor-pointer"], a { cursor: pointer; }
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

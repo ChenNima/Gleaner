@@ -19,6 +19,10 @@ interface AppState {
   currentFileId: string | null;
   setCurrentFileId: (id: string | null) => void;
 
+  /** Path to focus in file tree: { path: "repoFullName::folder/path", ts: timestamp } */
+  focusTreePath: { path: string; ts: number } | null;
+  setFocusTreePath: (path: string | null) => void;
+
   leftSidebarOpen: boolean;
   rightSidebarOpen: boolean;
   setLeftSidebarOpen: (open: boolean) => void;
@@ -65,6 +69,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   currentFileId: null,
   setCurrentFileId: (id) => set({ currentFileId: id }),
+
+  focusTreePath: null,
+  setFocusTreePath: (path) => set({ focusTreePath: path ? { path, ts: Date.now() } : null }),
 
   leftSidebarOpen: true,
   rightSidebarOpen: true,

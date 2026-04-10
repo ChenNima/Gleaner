@@ -4,16 +4,17 @@ import ForceGraph2D from 'react-force-graph-2d';
 import { getActiveFiles, getActiveLinks } from '../db';
 import { useThemeStore } from '../stores/theme';
 import {
-  type GraphData, type RenderContext,
+  type GraphNode, type GraphLink, type RenderContext,
   CANVAS_BG_DARK, CANVAS_BG_LIGHT, REPO_COLORS_LIGHT, REPO_COLORS_DARK,
   EXTERNAL_COLOR_LIGHT, EXTERNAL_COLOR_DARK,
   nodeDisplayName, nodeToRoute, dedupeLinks, buildNeighborMap,
   renderNode, paintPointerArea, linkColor, linkWidth,
+  buildGroups,
 } from '../lib/graph-utils';
 
 export default function GraphPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
+  const [rawData, setRawData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
   const [repoColors, setRepoColors] = useState<Map<string, string>>(new Map());
   const [hoverNode, setHoverNode] = useState<string | null>(null);
   const fgRef = useRef<any>(null);
@@ -22,6 +23,46 @@ export default function GraphPage() {
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
+
+  const [showExternalLinks, setShowExternalLinks] = useState(false);
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
+
+  // Build groups for color assignment, then filter by visibility
+  const { data, groups } = useMemo(() => {
+    let filteredNodes = rawData.nodes;
+    let filteredLinks = rawData.links;
+    if (!showExternalLinks) {
+      const extIds = new Set(rawData.nodes.filter((n) => n.isExternal).map((n) => n.id));
+      filteredNodes = rawData.nodes.filter((n) => !n.isExternal);
+      filteredLinks = rawData.links.filter((l) => !extIds.has(l.source) && !extIds.has(l.target));
+    }
+    // Assign groupId + color to nodes
+    const nodesCopy = filteredNodes.map((n) => ({ ...n }));
+    // Rebuild links as fresh string-only copies (force graph mutates source/target to objects)
+    const linksCopy = filteredLinks.map((l) => ({
+      source: typeof l.source === 'string' ? l.source : (l.source as any).id as string,
+      target: typeof l.target === 'string' ? l.target : (l.target as any).id as string,
+    }));
+    const grps = buildGroups(nodesCopy, linksCopy, repoColors, isDark);
+
+    // Filter out hidden groups' nodes
+    const hiddenNodeIds = new Set<string>();
+    for (const g of grps) {
+      if (hiddenGroups.has(g.id)) {
+        for (const nid of g.nodeIds) hiddenNodeIds.add(nid);
+      }
+    }
+    const visibleNodes = nodesCopy.filter((n) => !hiddenNodeIds.has(n.id));
+    const visibleNodeSet = new Set(visibleNodes.map((n) => n.id));
+    const visibleLinks = linksCopy.filter((l) => visibleNodeSet.has(l.source) && visibleNodeSet.has(l.target));
+
+    // Remove orphaned external nodes (lost all connections due to group hiding)
+    const connectedIds = new Set<string>();
+    for (const l of visibleLinks) { connectedIds.add(l.source); connectedIds.add(l.target); }
+    const finalNodes = visibleNodes.filter((n) => !n.isExternal || connectedIds.has(n.id));
+
+    return { data: { nodes: finalNodes, links: visibleLinks }, groups: grps };
+  }, [rawData, repoColors, isDark, showExternalLinks, hiddenGroups]);
 
   const neighbors = useMemo(() => buildNeighborMap(data.links), [data]);
 
@@ -42,7 +83,7 @@ export default function GraphPage() {
         if (link.targetFileId) degreeMap.set(link.targetFileId, (degreeMap.get(link.targetFileId) ?? 0) + 1);
       }
 
-      const nodeMap = new Map<string, (typeof data.nodes)[0]>();
+      const nodeMap = new Map<string, GraphNode>();
       for (const file of files) {
         nodeMap.set(file.id, {
           id: file.id,
@@ -68,7 +109,7 @@ export default function GraphPage() {
         }
       }
 
-      setData({ nodes: Array.from(nodeMap.values()), links: dedupeLinks(graphLinks) });
+      setRawData({ nodes: Array.from(nodeMap.values()), links: dedupeLinks(graphLinks) });
     })();
   }, [isDark]);
 
@@ -168,12 +209,63 @@ export default function GraphPage() {
             <Link to="/settings" className="text-primary hover:underline text-sm">Go to Settings</Link>
           </div>
         )}
+        {/* Control panel */}
+        {rawData.nodes.length > 0 && (
+          <div className="absolute bottom-3 left-3 z-10 bg-background/90 backdrop-blur border rounded-lg p-2 max-h-56 overflow-y-auto text-xs shadow-sm min-w-[140px]">
+            <label className="flex items-center gap-1.5 px-1 py-0.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showExternalLinks}
+                onChange={(e) => setShowExternalLinks(e.target.checked)}
+                className="w-3 h-3 rounded"
+              />
+              <span className="text-muted-foreground">External links</span>
+            </label>
+            {groups.length > 0 && (
+              <>
+                <div className="border-t mt-1 pt-1">
+                  {groups.map((g) => {
+                    const isVisible = !hiddenGroups.has(g.id);
+                    return (
+                      <label
+                        key={g.id}
+                        className="flex items-center gap-1.5 w-full px-1 py-0.5 rounded hover:bg-muted/50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isVisible}
+                          onChange={() => {
+                            setHiddenGroups((prev) => {
+                              const next = new Set(prev);
+                              if (isVisible) next.add(g.id); else next.delete(g.id);
+                              return next;
+                            });
+                          }}
+                          className="w-3 h-3 rounded"
+                        />
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: g.color, opacity: isVisible ? 1 : 0.3 }}
+                        />
+                        <span className={isVisible ? '' : 'text-muted-foreground line-through'}>
+                          {g.label}
+                        </span>
+                        <span className="ml-auto text-muted-foreground">{g.nodeIds.length}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {hasData && dimensions && (
           <ForceGraph2D
             ref={fgRef}
             graphData={data as any}
             width={dimensions.width}
             height={dimensions.height}
+            nodeCanvasObjectMode={() => 'replace'}
             nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) =>
               renderNode(node, ctx, { ...rc, mouseGraphPos: mouseGraphPos.current })
             }

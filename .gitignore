@@ -30,3 +30,4 @@ dist/
 .chorus
 .playwright-mcp
 .vite/
+test-data
