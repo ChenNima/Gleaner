@@ -13734,6 +13734,65 @@
                 },
                 {
                   "type": "frame",
+                  "id": "eXM3c",
+                  "name": "proxy",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "7sOfJ",
+                      "fill": "#09090B",
+                      "content": "GitHub API 代理（可选）",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "jg3xh",
+                      "name": "proxyBox",
+                      "width": "fill_container",
+                      "height": 36,
+                      "cornerRadius": 6,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1,
+                        "fill": "#E4E4E7"
+                      },
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Bllrl",
+                          "fill": "#A1A1AA",
+                          "content": "https://gh-proxy.com",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "08F9Z",
+                      "fill": "#A1A1AA",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "如果 GitHub API 访问不稳定，可以配置代理。留空则直连。",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
                   "id": "RpDew",
                   "name": "inp",
                   "width": "fill_container",
@@ -13793,34 +13852,59 @@
                 },
                 {
                   "type": "frame",
-                  "id": "Mj71K",
-                  "name": "acts",
+                  "id": "wHYHR",
+                  "name": "lang",
                   "width": "fill_container",
-                  "gap": 12,
-                  "justifyContent": "end",
-                  "alignItems": "center",
+                  "layout": "vertical",
+                  "gap": 6,
                   "children": [
                     {
+                      "type": "text",
+                      "id": "MHwrC",
+                      "fill": "#09090B",
+                      "content": "界面语言",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
                       "type": "frame",
-                      "id": "eXM3c",
-                      "name": "proxy",
+                      "id": "myQxa",
+                      "name": "langBtns",
                       "width": "fill_container",
-                      "layout": "vertical",
-                      "gap": 6,
+                      "gap": 8,
                       "children": [
                         {
-                          "type": "text",
-                          "id": "7sOfJ",
-                          "fill": "#09090B",
-                          "content": "GitHub API 代理（可选）",
-                          "fontFamily": "Inter",
-                          "fontSize": 13,
-                          "fontWeight": "500"
+                          "type": "frame",
+                          "id": "LhQLp",
+                          "name": "lb1",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "#18181B08",
+                          "cornerRadius": 6,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1,
+                            "fill": "#18181B"
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "UElF0",
+                              "fill": "#09090B",
+                              "content": "跟随系统",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "500"
+                            }
+                          ]
                         },
                         {
                           "type": "frame",
-                          "id": "jg3xh",
-                          "name": "proxyBox",
+                          "id": "kbAcD",
+                          "name": "lb2",
                           "width": "fill_container",
                           "height": 36,
                           "cornerRadius": 6,
@@ -13829,17 +13913,14 @@
                             "thickness": 1,
                             "fill": "#E4E4E7"
                           },
-                          "padding": [
-                            0,
-                            12
-                          ],
+                          "justifyContent": "center",
                           "alignItems": "center",
                           "children": [
                             {
                               "type": "text",
-                              "id": "Bllrl",
-                              "fill": "#A1A1AA",
-                              "content": "https://gh-proxy.com",
+                              "id": "dtAil",
+                              "fill": "#71717A",
+                              "content": "English",
                               "fontFamily": "Inter",
                               "fontSize": 13,
                               "fontWeight": "normal"
@@ -13847,18 +13928,44 @@
                           ]
                         },
                         {
-                          "type": "text",
-                          "id": "08F9Z",
-                          "fill": "#A1A1AA",
-                          "textGrowth": "fixed-width",
+                          "type": "frame",
+                          "id": "BZJjI",
+                          "name": "lb3",
                           "width": "fill_container",
-                          "content": "如果 GitHub API 访问不稳定，可以配置代理。留空则直连。",
-                          "fontFamily": "Inter",
-                          "fontSize": 12,
-                          "fontWeight": "normal"
+                          "height": 36,
+                          "cornerRadius": 6,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1,
+                            "fill": "#E4E4E7"
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "6qeAA",
+                              "fill": "#71717A",
+                              "content": "中文",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
                         }
                       ]
-                    },
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Mj71K",
+                  "name": "acts",
+                  "width": "fill_container",
+                  "gap": 12,
+                  "justifyContent": "end",
+                  "alignItems": "center",
+                  "children": [
                     {
                       "type": "text",
                       "id": "VXIlv",

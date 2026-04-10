@@ -181,9 +181,9 @@ function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, 
 
       {/* Info cards */}
       <div className="rounded-lg border bg-card p-4 space-y-4">
-        <InfoRow icon={ShieldCheck} title={t('onboard.token.recommended')} desc={t('onboard.token.recommendedDesc')} />
-        <InfoRow icon={Lock} title={t('onboard.token.secure')} desc={t('onboard.token.secureDesc')} />
-        <InfoRow icon={KeyRound} title={t('onboard.token.readonly')} desc={t('onboard.token.readonlyDesc')} />
+        <InfoRow icon={ShieldCheck} color="text-amber-600" title={t('onboard.token.recommended')} desc={t('onboard.token.recommendedDesc')} />
+        <InfoRow icon={Lock} color="text-green-600" title={t('onboard.token.secure')} desc={t('onboard.token.secureDesc')} />
+        <InfoRow icon={KeyRound} color="text-blue-600" title={t('onboard.token.readonly')} desc={t('onboard.token.readonlyDesc')} />
       </div>
 
       {/* Token input */}
@@ -257,11 +257,11 @@ function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, 
   );
 }
 
-function InfoRow({ icon: Icon, title, desc }: { icon: typeof ShieldCheck; title: string; desc: string }) {
+function InfoRow({ icon: Icon, color, title, desc }: { icon: typeof ShieldCheck; color?: string; title: string; desc: string }) {
   return (
     <div className="flex gap-3">
       <div className="shrink-0 mt-0.5">
-        <Icon className="h-4 w-4 text-primary" />
+        <Icon className={cn('h-4 w-4', color ?? 'text-primary')} />
       </div>
       <div>
         <p className="text-sm font-medium text-foreground">{title}</p>
