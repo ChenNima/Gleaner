@@ -64,7 +64,7 @@ Vite + React 19 + TypeScript · Zustand · IndexedDB (Dexie.js) · Tailwind CSS 
 
 ## 开发工具
 
-本项目使用 [Claude Code](https://claude.ai/claude-code) + [Chorus](https://chorus-ai.dev/) 开发完成。
+本项目使用 [Claude Code](https://claude.ai/claude-code) + [Chorus](https://chorus-ai.dev/zh/) 开发完成。
 
 ## 许可证
 
