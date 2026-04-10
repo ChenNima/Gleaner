@@ -62,6 +62,10 @@ repos:
 
 Vite + React 19 + TypeScript · Zustand · IndexedDB (Dexie.js) · Tailwind CSS 4 + shadcn/ui · unified (remark/rehype) · react-force-graph-2d · Playwright
 
+## 开发工具
+
+本项目使用 [Claude Code](https://claude.ai/claude-code) + [Chorus](https://chorus-ai.dev/) 开发完成。
+
 ## 许可证
 
 MIT

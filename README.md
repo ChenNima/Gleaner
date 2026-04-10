@@ -62,6 +62,10 @@ See the [documentation](https://github.com/ChenNima/Gleaner-Docs) for details.
 
 Vite + React 19 + TypeScript · Zustand · IndexedDB (Dexie.js) · Tailwind CSS 4 + shadcn/ui · unified (remark/rehype) · react-force-graph-2d · Playwright
 
+## Built With
+
+This project was built with [Claude Code](https://claude.ai/claude-code) and [Chorus](https://chorus-ai.dev/).
+
 ## License
 
 MIT
