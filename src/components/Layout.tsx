@@ -142,7 +142,8 @@ export function Layout({
               <PanelLeftOpen className="h-4 w-4" />
             )}
           </button>
-          <Link to="/" className="text-sm font-semibold text-foreground">
+          <Link to="/" className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <img src="/gleaner.png" alt="Gleaner" className="h-5 w-5" />
             Gleaner
           </Link>
           <ProfileSwitcher />

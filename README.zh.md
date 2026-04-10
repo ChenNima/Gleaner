@@ -1,6 +1,6 @@
 **中文** | [English](./README.md)
 
-# Gleaner
+<h1><img src="./screenshots/gleaner.png" width="32" height="32" alt="logo" /> Gleaner</h1>
 
 将 GitHub 仓库变成类似 Obsidian 的阅读体验——直接在浏览器中使用。
 

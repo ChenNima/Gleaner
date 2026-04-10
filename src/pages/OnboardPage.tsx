@@ -112,7 +112,10 @@ export default function OnboardPage() {
     <div className="flex flex-col h-screen bg-background">
       {/* Minimal header */}
       <header className="flex items-center justify-between h-11 px-3 border-b shrink-0">
-        <span className="text-sm font-semibold text-foreground">Gleaner</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <img src="/gleaner.png" alt="Gleaner" className="h-5 w-5" />
+          Gleaner
+        </span>
         <ThemeToggle />
       </header>
 

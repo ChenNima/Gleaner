@@ -1,6 +1,6 @@
 [中文](./README.zh.md) | **English**
 
-# Gleaner
+<h1><img src="./screenshots/gleaner.png" width="32" height="32" alt="logo" /> Gleaner</h1>
 
 A read-only knowledge base reader that turns GitHub repositories into an Obsidian-like browsing experience — directly in your browser.
 
