@@ -37,6 +37,10 @@ interface AppState {
 
   syncingRepos: Set<string>;
   setSyncing: (fullName: string, syncing: boolean) => void;
+
+  /** Bumped after each sync cycle completes — FilePage watches this to refresh content */
+  syncVersion: number;
+  bumpSyncVersion: () => void;
 }
 
 function persistWidth(key: string, value: number) {
@@ -101,4 +105,7 @@ export const useAppStore = create<AppState>((set) => ({
       else next.delete(fullName);
       return { syncingRepos: next };
     }),
+
+  syncVersion: 0,
+  bumpSyncVersion: () => set((state) => ({ syncVersion: state.syncVersion + 1 })),
 }));

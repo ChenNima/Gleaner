@@ -221,6 +221,7 @@ export async function syncAllRepos(onProgress?: ProgressCallback, configs?: Repo
   // Refresh store with final state
   const finalRepos = await db.repos.toArray();
   useAppStore.getState().setRepos(finalRepos);
+  useAppStore.getState().bumpSyncVersion();
 }
 
 function extractTitleFromContent(content: string): string | null {

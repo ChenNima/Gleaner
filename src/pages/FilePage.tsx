@@ -18,6 +18,7 @@ export default function FilePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const setCurrentFileId = useAppStore((s) => s.setCurrentFileId);
+  const syncVersion = useAppStore((s) => s.syncVersion);
   const [file, setFile] = useState<MdFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [resolvedLinks, setResolvedLinks] = useState<Map<string, boolean>>(new Map());
@@ -69,7 +70,7 @@ export default function FilePage() {
     })();
 
     return () => setCurrentFileId(null);
-  }, [fileId, owner, name, filePath]);
+  }, [fileId, owner, name, filePath, syncVersion]);
 
   const handleWikilinkClick = async (target: string) => {
     const resolved = await resolveWikilink(target, repoFullName);

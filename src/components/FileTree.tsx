@@ -12,10 +12,12 @@ import {
   CheckCircle2,
   RefreshCw,
   FoldVertical,
+  RotateCw,
 } from 'lucide-react';
 import { useAppStore } from '../stores/app';
 import type { Repo, MdFile } from '../db';
 import { cn } from '../lib/utils';
+import { refreshActiveProfile } from '../lib/profile';
 
 interface TreeNode {
   name: string;
@@ -278,6 +280,7 @@ export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) 
   const repos = useAppStore((s) => s.repos);
   const [collapseKey, setCollapseKey] = useState(0);
   const { t } = useTranslation();
+  const isSyncing = repos.some((r) => r.syncStatus === 'syncing');
 
   if (repos.length === 0) {
     return (
@@ -295,7 +298,15 @@ export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) 
 
   return (
     <div className="py-2 overflow-y-auto h-full">
-      <div className="flex justify-end px-2 mb-1">
+      <div className="flex justify-end gap-0.5 px-2 mb-1">
+        <button
+          onClick={() => refreshActiveProfile()}
+          disabled={isSyncing}
+          title={t('sync.refresh')}
+          className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40"
+        >
+          <RotateCw className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')} />
+        </button>
         <button
           onClick={() => setCollapseKey((k) => k + 1)}
           title={t('tree.collapseAll')}

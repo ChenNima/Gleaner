@@ -237,6 +237,27 @@ export async function switchProfile(id: string): Promise<void> {
 }
 
 /**
+ * Re-sync the active profile's repos using saved configs.
+ * Preserves existing cache — only fetches changes.
+ */
+export async function refreshActiveProfile(): Promise<void> {
+  if (currentSyncAbort) {
+    currentSyncAbort.abort();
+    currentSyncAbort = null;
+  }
+
+  const profile = await getActiveProfile();
+  if (!profile) return;
+
+  const repoConfigs = await getRepoConfigs(profile);
+
+  currentSyncAbort = new AbortController();
+  syncAllRepos((repo) => {
+    useAppStore.getState().updateRepo(repo.fullName, repo);
+  }, repoConfigs);
+}
+
+/**
  * Migrate existing config to profile system.
  * Called once on first boot after upgrade to v3.
  */
