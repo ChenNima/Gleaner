@@ -310,6 +310,7 @@ function Step2({
           selected={selectedOption === 'quickstart'}
           onClick={() => setSelectedOption('quickstart')}
           icon={Rocket}
+          color="text-amber-600"
           title={t('onboard.repos.quickstart')}
           desc={t('onboard.repos.quickstartDesc')}
           badge={t('onboard.repos.recommended')}
@@ -320,6 +321,7 @@ function Step2({
           selected={selectedOption === 'local'}
           onClick={() => setSelectedOption('local')}
           icon={FolderPlus}
+          color="text-green-600"
           title={t('onboard.repos.local')}
           desc={t('onboard.repos.localDesc')}
         >
@@ -362,6 +364,7 @@ function Step2({
           selected={selectedOption === 'github'}
           onClick={() => setSelectedOption('github')}
           icon={GitBranch}
+          color="text-blue-600"
           title={t('onboard.repos.github')}
           desc={t('onboard.repos.githubDesc')}
         >
@@ -416,11 +419,12 @@ function Step2({
 }
 
 function OptionCard({
-  selected, onClick, icon: Icon, title, desc, badge, children,
+  selected, onClick, icon: Icon, color, title, desc, badge, children,
 }: {
   selected: boolean;
   onClick: () => void;
   icon: typeof Rocket;
+  color?: string;
   title: string;
   desc: string;
   badge?: string;
@@ -439,7 +443,7 @@ function OptionCard({
           'shrink-0 h-9 w-9 rounded-lg flex items-center justify-center',
           selected ? 'bg-primary/10' : 'bg-muted'
         )}>
-          <Icon className={cn('h-4 w-4', selected ? 'text-primary' : 'text-muted-foreground')} />
+          <Icon className={cn('h-4 w-4', color ?? (selected ? 'text-primary' : 'text-muted-foreground'))} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
