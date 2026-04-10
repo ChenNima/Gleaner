@@ -145,6 +145,12 @@ const zh = {
   'settings.token.hint': '在 github.com/settings/tokens 生成——选择 Fine-grained，只读 Contents 权限。',
   'settings.token.save': '保存令牌',
 
+  // Proxy
+  'settings.proxy.label': 'GitHub API 代理',
+  'settings.proxy.info': '如果 GitHub API 在您所在地区访问缓慢或不稳定，可以配置代理服务。所有 API 请求将通过代理转发。',
+  'settings.proxy.placeholder': 'https://ghproxy.vip',
+  'settings.proxy.hint': '留空则直连 GitHub。代理地址会作为前缀添加到所有 GitHub API 请求中。',
+
   // Cache tab
   'settings.cache.title': '缓存与数据',
   'settings.cache.desc': '管理缓存内容和重置应用数据。',

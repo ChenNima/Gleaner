@@ -22,6 +22,7 @@ import { db } from '../db';
 import { resetHydration } from '../lib/hydrate';
 import { cn } from '../lib/utils';
 import { setLanguage, getLanguageSetting } from '../i18n';
+import { getGithubProxy, setGithubProxy } from '../lib/github';
 
 type SettingsTab = 'profiles' | 'repositories' | 'token' | 'cache' | 'import-export' | 'language';
 
@@ -41,6 +42,7 @@ export default function SettingsPage() {
   const [profiles, setProfilesList] = useState<Profile[]>([]);
   const [activeProfile, setActiveProfileState] = useState<Profile | null>(null);
   const [pat, setPatValue] = useState('');
+  const [proxyUrl, setProxyUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export default function SettingsPage() {
       if (active) loadProfileEditor(active);
       const token = await getPat();
       if (token) setPatValue(token);
+      setProxyUrl(getGithubProxy());
       const fileCount = await db.files.count();
       const linkCount = await db.links.count();
       setCacheStats({ files: fileCount, links: linkCount });
@@ -146,6 +149,7 @@ export default function SettingsPage() {
     try {
       if (pat.trim()) await setPat(pat.trim());
       else await clearPat();
+      setGithubProxy(proxyUrl);
 
       if (activeProfile.type === 'github') {
         if (!githubRepo.trim()) { setError(t('settings.repos.enterConfigRepo')); setSaving(false); return; }
@@ -366,7 +370,7 @@ export default function SettingsPage() {
               saving={saving}
             />}
 
-            {tab === 'token' && <TokenTab pat={pat} onPatChange={setPatValue} onSave={handleSave} saving={saving} />}
+            {tab === 'token' && <TokenTab pat={pat} proxyUrl={proxyUrl} onPatChange={setPatValue} onProxyChange={setProxyUrl} onSave={handleSave} saving={saving} />}
 
             {tab === 'cache' && <CacheTab stats={cacheStats} onClearCache={handleClearCache} onResetAll={handleResetAll} />}
 
@@ -674,9 +678,11 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
 }
 
 /* -- Token Tab -- */
-function TokenTab({ pat, onPatChange, onSave, saving }: {
+function TokenTab({ pat, proxyUrl, onPatChange, onProxyChange, onSave, saving }: {
   pat: string;
+  proxyUrl: string;
   onPatChange: (v: string) => void;
+  onProxyChange: (v: string) => void;
   onSave: () => void;
   saving: boolean;
 }) {
@@ -707,15 +713,39 @@ function TokenTab({ pat, onPatChange, onSave, saving }: {
           </div>
           <p className="text-[11px] text-muted-foreground">{t('settings.token.hint')}</p>
         </div>
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {t('settings.token.save')}
-        </button>
       </Card>
+
+      <Card className="p-5 space-y-4">
+        <div className="flex gap-2">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">{t('settings.token.optional')}</span>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {t('settings.proxy.info')}
+        </p>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">{t('settings.proxy.label')}</label>
+          <div className="flex items-center gap-2 border rounded-md bg-muted/30 px-3 py-2">
+            <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={proxyUrl}
+              onChange={(e) => onProxyChange(e.target.value)}
+              placeholder={t('settings.proxy.placeholder')}
+              className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">{t('settings.proxy.hint')}</p>
+        </div>
+      </Card>
+
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+      >
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        {t('settings.token.save')}
+      </button>
     </>
   );
 }

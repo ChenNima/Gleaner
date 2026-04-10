@@ -145,6 +145,12 @@ const en = {
   'settings.token.hint': 'Generate at github.com/settings/tokens \u2014 select Fine-grained, read-only Contents.',
   'settings.token.save': 'Save Token',
 
+  // Proxy
+  'settings.proxy.label': 'GitHub API Proxy',
+  'settings.proxy.info': 'If GitHub API is slow or unreliable in your region, configure a proxy service. All API requests will be routed through it.',
+  'settings.proxy.placeholder': 'https://ghproxy.vip',
+  'settings.proxy.hint': 'Leave empty to connect directly. The proxy URL will be prepended to all GitHub API requests.',
+
   // Cache tab
   'settings.cache.title': 'Cache & Data',
   'settings.cache.desc': 'Manage cached content and reset application data.',

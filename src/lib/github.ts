@@ -7,6 +7,27 @@ import {
 
 const API_BASE = 'https://api.github.com';
 
+const PROXY_KEY = 'gleaner-github-proxy';
+
+export function getGithubProxy(): string {
+  return localStorage.getItem(PROXY_KEY) ?? '';
+}
+
+export function setGithubProxy(url: string) {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (trimmed) {
+    localStorage.setItem(PROXY_KEY, trimmed);
+  } else {
+    localStorage.removeItem(PROXY_KEY);
+  }
+}
+
+function applyProxy(url: string): string {
+  const proxy = getGithubProxy();
+  if (!proxy) return url;
+  return `${proxy}/${url}`;
+}
+
 export interface TreeEntry {
   path: string;
   mode: string;
@@ -35,7 +56,7 @@ async function ghFetch(url: string, accept?: string): Promise<Response> {
 
   let response: Response;
   try {
-    response = await fetch(url, { headers });
+    response = await fetch(applyProxy(url), { headers });
   } catch {
     throw new NetworkError();
   }
