@@ -32,12 +32,30 @@ interface MarkdownViewerProps {
 }
 
 function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolean>): string {
-  return content.replace(WIKILINK_REGEX, (_match, target: string, alias?: string) => {
+  // Protect code blocks and inline code from wikilink replacement
+  const codeSlots: string[] = [];
+  const placeholder = (i: number) => `\x00CODE${i}\x00`;
+
+  // Replace fenced code blocks first, then inline code spans
+  let safe = content.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+    const idx = codeSlots.length;
+    codeSlots.push(m);
+    return placeholder(idx);
+  });
+
+  // Replace wikilinks in the safe string
+  safe = safe.replace(WIKILINK_REGEX, (_match, target: string, alias?: string) => {
     const display = alias ?? target;
     const encoded = encodeURIComponent(target.trim());
     const isResolved = resolvedLinks?.get(target.trim().toLowerCase()) ?? false;
     return `<a class="wikilink" data-wikilink="${encoded}" data-resolved="${isResolved}">${display}</a>`;
   });
+
+  // Restore code blocks
+  for (let i = 0; i < codeSlots.length; i++) {
+    safe = safe.replace(placeholder(i), codeSlots[i]);
+  }
+  return safe;
 }
 
 export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, onInternalLinkClick, onFolderClick, repoFullName }: MarkdownViewerProps) {

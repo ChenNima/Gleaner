@@ -41,8 +41,10 @@ export function extractMarkdownLinks(content: string, sourcePath: string): strin
  *      sourcePath="README.md", href="docs/ARCHITECTURE.md" → "docs/ARCHITECTURE.md"
  */
 function resolveRelativePath(sourcePath: string, href: string): string | null {
+  // Decode URL-encoded characters (e.g. %20 → space) so paths match DB entries
+  const decodedHref = decodeURIComponent(href);
   const sourceDir = sourcePath.includes('/') ? sourcePath.substring(0, sourcePath.lastIndexOf('/')) : '';
-  const parts = (sourceDir ? sourceDir + '/' + href : href).split('/');
+  const parts = (sourceDir ? sourceDir + '/' + decodedHref : decodedHref).split('/');
   const resolved: string[] = [];
   for (const part of parts) {
     if (part === '.' || part === '') continue;

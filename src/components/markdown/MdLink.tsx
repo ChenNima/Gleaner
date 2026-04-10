@@ -32,7 +32,8 @@ function LinkTooltip({ icon, tip, children }: { icon: ReactNode; tip: string; ch
 
 /** Resolve a relative href against the current file's directory. */
 function resolvePath(href: string, fileDir?: string): string {
-  const parts = (fileDir ? fileDir + '/' + href : href).split('/');
+  const decoded = decodeURIComponent(href);
+  const parts = (fileDir ? fileDir + '/' + decoded : decoded).split('/');
   const resolved: string[] = [];
   for (const part of parts) {
     if (part === '.' || part === '') continue;
