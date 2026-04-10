@@ -734,8 +734,8 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                                 )}
                               >
                                 <div className={cn(
-                                  'absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform',
-                                  isLockEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                                  'absolute top-0.5 w-3 h-3 rounded-full transition-transform',
+                                  isLockEnabled ? 'translate-x-4 bg-primary-foreground' : 'translate-x-0.5 bg-foreground/60'
                                 )} />
                               </button>
                               <input
