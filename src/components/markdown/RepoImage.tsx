@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAuthHeaders } from '../../lib/auth';
+import { getGithubProxy } from '../../lib/github';
 
 // Module-level cache: cacheKey → blob URL
 const imageCache = new Map<string, string>();
@@ -53,8 +54,11 @@ export function RepoImage({ src, alt, repoFullName, fileDir, ...rest }: RepoImag
     (async () => {
       try {
         const headers = await getAuthHeaders();
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${fullPath}`;
+        const proxy = getGithubProxy();
+        const fetchUrl = proxy ? `${proxy}/${apiUrl}` : apiUrl;
         const resp = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/contents/${fullPath}`,
+          fetchUrl,
           { headers: { ...headers, Accept: 'application/vnd.github.raw' } }
         );
         if (!resp.ok || cancelled) return;
