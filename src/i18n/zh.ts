@@ -81,6 +81,10 @@ const zh = {
   'sync.files': '{{count}} 个文件',
   'sync.refresh': '刷新',
 
+  // Offline
+  'offline.banner': '当前处于离线模式 — 已缓存内容仍可浏览',
+  'offline.syncDisabled': '离线时无法同步',
+
   // Profile switcher
   'profile.fallback': '配置',
   'profile.local': '本地',
@@ -173,6 +177,11 @@ const zh = {
   'settings.cache.filesCached': '已缓存文件',
   'settings.cache.linksResolved': '已解析链接',
   'settings.cache.storageUsed': '存储占用',
+  'settings.pwa.title': '安装应用',
+  'settings.pwa.desc': '将 Gleaner 安装为独立应用，获得全屏、无浏览器 UI 干扰的原生体验，支持离线访问。',
+  'settings.pwa.install': '安装到主屏幕',
+  'settings.pwa.installed': '应用已安装',
+
   'settings.cache.danger': '恢复出厂设置',
   'settings.cache.dangerDesc': '永久清除所有数据并返回引导页面。此操作不可撤销。',
   'settings.cache.dangerList': '将删除以下内容：',

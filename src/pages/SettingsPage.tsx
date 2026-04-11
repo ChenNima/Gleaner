@@ -24,11 +24,13 @@ import { resetHydration } from '../lib/hydrate';
 import { cn } from '../lib/utils';
 import { setLanguage, getLanguageSetting } from '../i18n';
 import { getGithubProxy, setGithubProxy } from '../lib/github';
+import { OfflineBar } from '../components/OfflineBar';
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent,
   AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '../components/ui/alert-dialog';
+import { canInstall, isInstalled, installPWA, onInstallChange } from '../lib/pwa';
 
 type SettingsTab = 'profiles' | 'repositories' | 'token' | 'cache' | 'import-export' | 'language';
 
@@ -296,6 +298,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-dvh">
+      <OfflineBar />
       {/* Navbar */}
       <header className="flex items-center justify-between h-11 px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-2">
@@ -934,6 +937,44 @@ function TokenTab({ pat, proxyUrl, onPatChange, onProxyChange, onSave, saving }:
   );
 }
 
+/* -- PWA Install Card -- */
+function PwaInstallCard() {
+  const { t } = useTranslation();
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    return onInstallChange(() => forceUpdate((n) => n + 1));
+  }, []);
+
+  const installed = isInstalled();
+  const installable = canInstall();
+
+  if (!installed && !installable) return null;
+
+  return (
+    <Card className="p-5 space-y-3">
+      <h3 className="text-sm font-semibold">{t('settings.pwa.title')}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {t('settings.pwa.desc')}
+      </p>
+      {installed ? (
+        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+          <Check className="h-4 w-4" />
+          <span>{t('settings.pwa.installed')}</span>
+        </div>
+      ) : (
+        <button
+          onClick={() => installPWA()}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          {t('settings.pwa.install')}
+        </button>
+      )}
+    </Card>
+  );
+}
+
 /* -- Cache & Data Tab -- */
 function CacheTab({ stats, onResetAll }: {
   stats: { files: number; links: number };
@@ -970,6 +1011,9 @@ function CacheTab({ stats, onResetAll }: {
           </div>
         </div>
       </Card>
+
+      {/* PWA Install */}
+      <PwaInstallCard />
 
       {/* Danger zone — factory reset */}
       <Card className="border-destructive/40 overflow-hidden">

@@ -81,6 +81,10 @@ const en = {
   'sync.files': '{{count}} files',
   'sync.refresh': 'Refresh',
 
+  // Offline
+  'offline.banner': 'You are offline — cached content is still available',
+  'offline.syncDisabled': 'Sync unavailable while offline',
+
   // Profile switcher
   'profile.fallback': 'Profile',
   'profile.local': 'Local',
@@ -173,6 +177,11 @@ const en = {
   'settings.cache.filesCached': 'Files cached',
   'settings.cache.linksResolved': 'Links resolved',
   'settings.cache.storageUsed': 'Storage used',
+  'settings.pwa.title': 'Install App',
+  'settings.pwa.desc': 'Install Gleaner as a standalone app on your device for a full-screen, native-like experience with offline access.',
+  'settings.pwa.install': 'Install to Home Screen',
+  'settings.pwa.installed': 'App is installed',
+
   'settings.cache.danger': 'Factory Reset',
   'settings.cache.dangerDesc': 'Permanently erase everything and return to the onboarding screen. This cannot be undone.',
   'settings.cache.dangerList': 'This will delete:',

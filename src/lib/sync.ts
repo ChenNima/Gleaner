@@ -197,6 +197,19 @@ async function syncSingleRepo(
  * Sync all repos. Each repo is synced independently — one failure doesn't block others.
  */
 export async function syncAllRepos(onProgress?: ProgressCallback, configs?: RepoConfig[]): Promise<void> {
+  if (!navigator.onLine) {
+    console.log('[sync] Offline — skipping sync');
+    // Still load cached data into store so UI renders from IndexedDB
+    const repos = await db.repos.toArray();
+    useAppStore.getState().setRepos(repos);
+    for (const repo of repos) {
+      const cachedFiles = await db.files.where('repoFullName').equals(repo.fullName).toArray();
+      useAppStore.getState().setFileTree(repo.fullName, cachedFiles);
+    }
+    useAppStore.getState().bumpSyncVersion();
+    return;
+  }
+
   const repos = await db.repos.toArray();
   useAppStore.getState().setRepos(repos);
 

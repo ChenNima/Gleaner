@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app';
 
 export function SyncStatus({ onRefresh }: { onRefresh?: () => void }) {
   const repos = useAppStore((s) => s.repos);
+  const isOnline = useAppStore((s) => s.isOnline);
   const { t } = useTranslation();
 
   const syncing = repos.filter((r) => r.syncStatus === 'syncing');
@@ -32,8 +33,9 @@ export function SyncStatus({ onRefresh }: { onRefresh?: () => void }) {
       {onRefresh && (
         <button
           onClick={onRefresh}
-          className="p-1 rounded hover:bg-accent"
-          title={t('sync.refresh')}
+          className="p-1 rounded hover:bg-accent disabled:opacity-40 disabled:pointer-events-none"
+          title={isOnline ? t('sync.refresh') : t('offline.syncDisabled')}
+          disabled={!isOnline}
         >
           <RefreshCw className="h-3.5 w-3.5" />
         </button>

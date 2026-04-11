@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TooltipProvider } from './components/ui/tooltip';
 import { Layout } from './components/Layout';
@@ -19,6 +20,19 @@ function FilePageWithPanel() {
 }
 
 function App() {
+  const setOnline = useAppStore((s) => s.setOnline);
+
+  useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [setOnline]);
+
   return (
     <TooltipProvider delayDuration={300}>
     <BrowserRouter>

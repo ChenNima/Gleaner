@@ -10,6 +10,7 @@ import { SearchDialog } from './SearchDialog';
 import { cn } from '../lib/utils';
 import { hydrateStoreFromDB } from '../lib/hydrate';
 import { ProfileSwitcher } from './ProfileSwitcher';
+import { OfflineBar } from './OfflineBar';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -128,6 +129,7 @@ export function Layout({
 
   return (
     <div className="flex flex-col h-dvh">
+      <OfflineBar />
       {/* Top navbar */}
       <header className="flex items-center justify-between h-11 px-2 md:px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-1.5 md:gap-2">

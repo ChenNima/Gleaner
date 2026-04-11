@@ -41,6 +41,9 @@ interface AppState {
   /** Bumped after each sync cycle completes — FilePage watches this to refresh content */
   syncVersion: number;
   bumpSyncVersion: () => void;
+
+  isOnline: boolean;
+  setOnline: (online: boolean) => void;
 }
 
 function persistWidth(key: string, value: number) {
@@ -108,4 +111,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   syncVersion: 0,
   bumpSyncVersion: () => set((state) => ({ syncVersion: state.syncVersion + 1 })),
+
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  setOnline: (online) => set({ isOnline: online }),
 }));
