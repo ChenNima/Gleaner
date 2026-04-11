@@ -23,8 +23,7 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
-          { src: '/gleaner.png', sizes: '512x512', type: 'image/png' },
+          { src: '/gleaner.png', sizes: '768x768', type: 'image/png', purpose: 'any' },
         ],
       },
       devOptions: {

@@ -160,7 +160,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
   return (
     <div
       ref={containerRef}
-      className={cn('prose prose-sm dark:prose-invert max-w-none px-8 py-6', `md-theme-${markdownTheme}`)}
+      className={cn('prose prose-sm dark:prose-invert max-w-none px-4 md:px-8 py-6', `md-theme-${markdownTheme}`)}
     >
       {frontmatter && <FrontmatterCard meta={frontmatter} />}
       {content}

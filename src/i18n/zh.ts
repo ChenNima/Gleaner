@@ -13,6 +13,7 @@ const zh = {
   'nav.hideSidebar': '隐藏侧边栏',
   'nav.showSidebar': '显示侧边栏',
   'nav.knowledgeGraph': '知识图谱',
+  'nav.backToArticle': '返回文章',
   'nav.settings': '设置',
   'nav.hideBacklinks': '隐藏反向链接',
   'nav.showBacklinks': '显示反向链接',
@@ -23,6 +24,7 @@ const zh = {
   'theme.switchToDark': '切换到深色模式',
   'theme.switchToLight': '切换到浅色模式',
   'theme.documentTheme': '文档主题',
+  'theme.darkMode': '深色模式',
 
   // Markdown themes
   'mdTheme.github': 'GitHub',

@@ -19,6 +19,10 @@ interface AppState {
   currentFileId: string | null;
   setCurrentFileId: (id: string | null) => void;
 
+  /** Remembers the last file route so we can navigate back from graph */
+  lastFileRoute: string | null;
+  setLastFileRoute: (route: string | null) => void;
+
   /** Path to focus in file tree: { path: "repoFullName::folder/path", ts: timestamp } */
   focusTreePath: { path: string; ts: number } | null;
   setFocusTreePath: (path: string | null) => void;
@@ -76,6 +80,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   currentFileId: null,
   setCurrentFileId: (id) => set({ currentFileId: id }),
+
+  lastFileRoute: null,
+  setLastFileRoute: (route) => set({ lastFileRoute: route }),
 
   focusTreePath: null,
   setFocusTreePath: (path) => set({ focusTreePath: path ? { path, ts: Date.now() } : null }),

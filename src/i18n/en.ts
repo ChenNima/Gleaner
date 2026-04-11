@@ -13,6 +13,7 @@ const en = {
   'nav.hideSidebar': 'Hide sidebar',
   'nav.showSidebar': 'Show sidebar',
   'nav.knowledgeGraph': 'Knowledge Graph',
+  'nav.backToArticle': 'Back to article',
   'nav.settings': 'Settings',
   'nav.hideBacklinks': 'Hide backlinks',
   'nav.showBacklinks': 'Show backlinks',
@@ -23,6 +24,7 @@ const en = {
   'theme.switchToDark': 'Switch to dark mode',
   'theme.switchToLight': 'Switch to light mode',
   'theme.documentTheme': 'Document theme',
+  'theme.darkMode': 'Dark mode',
 
   // Markdown themes
   'mdTheme.github': 'GitHub',
