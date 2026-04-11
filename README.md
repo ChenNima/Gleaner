@@ -6,6 +6,8 @@ A read-only knowledge base reader that turns GitHub repositories into an Obsidia
 
 ![Reading view](./screenshots/reading.png)
 
+**Online Demo**: [gleaner.chorus-ai.dev](https://gleaner.chorus-ai.dev/)
+
 ## Features
 
 - **Markdown rendering** — GFM, code highlighting, inline HTML, `<video>` support

@@ -6,6 +6,8 @@
 
 ![阅读界面](./screenshots/reading.png)
 
+**在线体验**: [gleaner.chorus-ai.dev](https://gleaner.chorus-ai.dev/)
+
 ## 功能
 
 - **Markdown 渲染** — GFM、代码高亮、内嵌 HTML、`<video>` 支持
