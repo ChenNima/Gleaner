@@ -5,6 +5,7 @@ import {
   ArrowLeft, Save, Trash2, Loader2, Plus, X, GripVertical,
   Globe, HardDrive, Check, Pencil, Code, List, Download, Upload, FileUp,
   User, BookOpen, Key, Database, Languages, ChevronDown, ChevronUp, RotateCw,
+  AlertTriangle, Eraser,
 } from 'lucide-react';
 
 const YamlEditor = lazy(() => import('../components/YamlEditor').then((m) => ({ default: m.YamlEditor })));
@@ -23,6 +24,11 @@ import { resetHydration } from '../lib/hydrate';
 import { cn } from '../lib/utils';
 import { setLanguage, getLanguageSetting } from '../i18n';
 import { getGithubProxy, setGithubProxy } from '../lib/github';
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent,
+  AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '../components/ui/alert-dialog';
 
 type SettingsTab = 'profiles' | 'repositories' | 'token' | 'cache' | 'import-export' | 'language';
 
@@ -72,6 +78,9 @@ export default function SettingsPage() {
       const fileCount = await db.files.count();
       const linkCount = await db.links.count();
       setCacheStats({ files: fileCount, links: linkCount });
+      // Hydrate Zustand repos from DB so sync status & clear-cache buttons work
+      const dbRepos = await db.repos.toArray();
+      useAppStore.getState().setRepos(dbRepos);
     })();
   }, []);
 
@@ -250,31 +259,37 @@ export default function SettingsPage() {
   }
   function handleDragEnd() { setDragIdx(null); }
 
-  async function handleClearCache() {
-    await db.files.clear();
-    await db.links.clear();
-    await db.repos.toCollection().modify({ treeSha: null, cachedFiles: 0, syncStatus: 'idle' });
+  async function handleClearRepoCache(repoFullName: string) {
+    // Delete files belonging to this repo
+    await db.files.where('repoFullName').equals(repoFullName).delete();
+    // Delete links whose sourceFileId starts with "owner/repo::"
+    const repoPrefix = repoFullName + '::';
+    const linksToDelete = await db.links.filter((l) => l.sourceFileId.startsWith(repoPrefix)).primaryKeys();
+    await db.links.bulkDelete(linksToDelete);
+    // Reset this repo's cache metadata
+    await db.repos.where('fullName').equals(repoFullName).modify({ treeSha: null, cachedFiles: 0, syncStatus: 'idle' });
+    // Update store
     useAppStore.getState().setRepos(await db.repos.toArray());
     useAppStore.getState().clearFileTree();
     await refreshProfiles();
-    setSuccess(t('settings.cache.cleared'));
+    setSuccess(t('settings.repos.cacheCleared', { repo: repoFullName }));
   }
 
   async function handleResetAll() {
+    // Clear IndexedDB
     await db.delete();
     await db.open();
     resetHydration();
+    // Clear localStorage (github proxy, language, etc.)
+    localStorage.clear();
+    // Clear Zustand state
     useAppStore.getState().setRepos([]);
     useAppStore.getState().clearFileTree();
     useAppStore.getState().setProfiles([]);
     useAppStore.getState().setActiveProfileId(null);
-    setProfilesList([]);
-    setActiveProfileState(null);
-    setGithubRepo('');
-    setLocalRepos([]);
-    setPatValue('');
-    setCacheStats({ files: 0, links: 0 });
     setSuccess(t('settings.cache.resetDone'));
+    // Navigate to onboarding after a brief delay so the user sees feedback
+    setTimeout(() => navigate('/onboard'), 800);
   }
 
   const repos = useAppStore((s) => s.repos);
@@ -384,12 +399,13 @@ export default function SettingsPage() {
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
               onSave={handleSave}
+              onClearRepoCache={handleClearRepoCache}
               saving={saving}
             />}
 
             {tab === 'token' && <TokenTab pat={pat} proxyUrl={proxyUrl} onPatChange={setPatValue} onProxyChange={setProxyUrl} onSave={handleSave} saving={saving} />}
 
-            {tab === 'cache' && <CacheTab stats={cacheStats} onClearCache={handleClearCache} onResetAll={handleResetAll} />}
+            {tab === 'cache' && <CacheTab stats={cacheStats} onResetAll={handleResetAll} />}
 
             {tab === 'language' && <LanguageTab />}
 
@@ -577,7 +593,7 @@ function PathListEditor({ paths, onChange, placeholder }: { paths: string[]; onC
 }
 
 /* -- Repositories Tab -- */
-function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yamlText, yamlError, dragIdx, repos, onGithubRepoChange, onTabSwitch, onYamlChange, onAddRepo, onUpdateRepo, onUpdateRepoConfig, onRemoveRepo, onDragStart, onDragOver, onDragEnd, onSave, saving }: {
+function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yamlText, yamlError, dragIdx, repos, onGithubRepoChange, onTabSwitch, onYamlChange, onAddRepo, onUpdateRepo, onUpdateRepoConfig, onRemoveRepo, onDragStart, onDragOver, onDragEnd, onSave, onClearRepoCache, saving }: {
   activeProfile: Profile | null;
   githubRepo: string;
   localRepos: RepoConfig[];
@@ -597,6 +613,7 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
   onDragOver: (e: React.DragEvent, idx: number) => void;
   onDragEnd: () => void;
   onSave: () => void;
+  onClearRepoCache: (repoFullName: string) => void;
   saving: boolean;
 }) {
   const { t } = useTranslation();
@@ -698,6 +715,36 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
                         placeholder={t('settings.repos.label')}
                         className="w-24 text-sm text-right bg-transparent outline-none placeholder:text-muted-foreground"
                       />
+                      {syncInfo && syncInfo.cachedFiles > 0 && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button
+                              className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 shrink-0"
+                              title={t('settings.repos.clearCache')}
+                            >
+                              <Eraser className="h-3.5 w-3.5" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('settings.repos.clearCache')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t('settings.repos.clearCacheConfirm', { repo: repo.url })}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => onClearRepoCache(repo.url)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                <Eraser className="h-4 w-4 mr-1.5" />
+                                {t('settings.repos.clearCache')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                       <button
                         onClick={() => setExpandedIdx(isExpanded ? null : idx)}
                         className="p-1 rounded hover:bg-accent text-muted-foreground shrink-0"
@@ -888,16 +935,21 @@ function TokenTab({ pat, proxyUrl, onPatChange, onProxyChange, onSave, saving }:
 }
 
 /* -- Cache & Data Tab -- */
-function CacheTab({ stats, onClearCache, onResetAll }: {
+function CacheTab({ stats, onResetAll }: {
   stats: { files: number; links: number };
-  onClearCache: () => void;
   onResetAll: () => void;
 }) {
   const { t } = useTranslation();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const canConfirm = confirmText === 'RESET';
+
   return (
     <>
       <SectionHeader title={t('settings.cache.title')} desc={t('settings.cache.desc')} />
       <hr className="border-border" />
+
+      {/* Stats overview */}
       <Card className="p-5 space-y-4">
         <h3 className="text-sm font-semibold">{t('settings.cache.filesTitle')}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -917,25 +969,67 @@ function CacheTab({ stats, onClearCache, onResetAll }: {
             <div className="text-[11px] text-muted-foreground">{t('settings.cache.storageUsed')}</div>
           </div>
         </div>
-        <button
-          onClick={onClearCache}
-          className="flex items-center gap-2 px-4 py-2 text-sm border rounded-md hover:bg-accent"
-        >
-          <Trash2 className="h-4 w-4" /> {t('settings.cache.clear')}
-        </button>
       </Card>
 
-      <Card className="p-5 space-y-3 border-destructive/50">
-        <h3 className="text-sm font-semibold text-destructive">{t('settings.cache.danger')}</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {t('settings.cache.dangerDesc')}
-        </p>
-        <button
-          onClick={onResetAll}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"
-        >
-          <Trash2 className="h-4 w-4" /> {t('settings.cache.resetAll')}
-        </button>
+      {/* Danger zone — factory reset */}
+      <Card className="border-destructive/40 overflow-hidden">
+        <div className="bg-destructive/5 px-5 py-3 border-b border-destructive/20 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <h3 className="text-sm font-semibold text-destructive">{t('settings.cache.danger')}</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {t('settings.cache.dangerDesc')}
+          </p>
+          <div className="text-sm space-y-1">
+            <p className="font-medium text-foreground">{t('settings.cache.dangerList')}</p>
+            <ul className="list-disc list-inside text-muted-foreground space-y-0.5 text-[13px]">
+              <li>{t('settings.cache.dangerItem1')}</li>
+              <li>{t('settings.cache.dangerItem2')}</li>
+              <li>{t('settings.cache.dangerItem3')}</li>
+              <li>{t('settings.cache.dangerItem4')}</li>
+            </ul>
+          </div>
+
+          {!showConfirm ? (
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border-2 border-destructive text-destructive rounded-md hover:bg-destructive hover:text-destructive-foreground transition-colors"
+            >
+              <Trash2 className="h-4 w-4" /> {t('settings.cache.resetAll')}
+            </button>
+          ) : (
+            <div className="border border-destructive/30 rounded-lg p-4 bg-destructive/5 space-y-3">
+              <label className="text-sm font-medium text-destructive">
+                {t('settings.cache.resetConfirmLabel')}
+              </label>
+              <input
+                autoFocus
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && canConfirm) onResetAll(); }}
+                placeholder={t('settings.cache.resetConfirmPlaceholder')}
+                className="w-full px-3 py-2 text-sm border border-destructive/30 rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-destructive/50 placeholder:text-muted-foreground font-mono"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onResetAll}
+                  disabled={!canConfirm}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                >
+                  <Trash2 className="h-4 w-4" /> {t('settings.cache.resetAll')}
+                </button>
+                <button
+                  onClick={() => { setShowConfirm(false); setConfirmText(''); }}
+                  className="px-4 py-2 text-sm border rounded-md hover:bg-accent"
+                >
+                  {t('settings.cache.resetCancel')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
     </>
   );
