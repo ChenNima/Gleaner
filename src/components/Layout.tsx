@@ -131,17 +131,17 @@ export function Layout({
     <div className="flex flex-col h-dvh">
       <OfflineBar />
       {/* Top navbar */}
-      <header className="flex items-center justify-between h-11 px-2 md:px-3 border-b bg-background shrink-0">
-        <div className="flex items-center gap-1.5 md:gap-2">
+      <header className="flex items-center justify-between h-12 md:h-11 px-3 md:px-3 border-b bg-background shrink-0">
+        <div className="flex items-center gap-2 md:gap-2">
           <button
             onClick={toggleLeft}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground"
+            className="p-2.5 md:p-1.5 rounded hover:bg-accent text-muted-foreground"
             title={leftOpen ? t('nav.hideSidebar') : t('nav.showSidebar')}
           >
             {leftOpen ? (
-              <PanelLeftClose className="h-4 w-4" />
+              <PanelLeftClose className="h-5 w-5 md:h-4 md:w-4" />
             ) : (
-              <PanelLeftOpen className="h-4 w-4" />
+              <PanelLeftOpen className="h-5 w-5 md:h-4 md:w-4" />
             )}
           </button>
           <Link to="/" className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
@@ -151,15 +151,18 @@ export function Layout({
           <ProfileSwitcher />
         </div>
 
-        <div className="flex items-center gap-0.5 md:gap-1">
-          <SyncStatus />
+        <div className="flex items-center gap-1 md:gap-1">
+          {/* SyncStatus: visible on desktop, hidden on mobile (moved to dropdown) */}
+          <div className="hidden md:flex">
+            <SyncStatus />
+          </div>
           <button
             onClick={() => setSearchOpen(true)}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground flex items-center gap-1"
+            className="p-2.5 md:p-1.5 rounded hover:bg-accent text-muted-foreground flex items-center gap-1"
             title={t('search.title')}
             data-testid="search-trigger"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-5 w-5 md:h-4 md:w-4" />
             <kbd className="hidden md:inline text-[10px] px-1 py-0.5 rounded border bg-muted text-muted-foreground">⌘K</kbd>
           </button>
 
@@ -203,51 +206,57 @@ export function Layout({
           <div className="relative md:hidden" ref={mobileMenuRef}>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 rounded hover:bg-accent text-muted-foreground"
+              className="p-2.5 rounded hover:bg-accent text-muted-foreground"
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-5 w-5" />
             </button>
             {mobileMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-44 rounded-md border bg-popover shadow-lg z-50 py-1">
+              <div className="absolute right-0 top-full mt-1 w-52 rounded-md border bg-popover shadow-lg z-50 py-1">
+                {/* Sync status in dropdown on mobile */}
+                <div className="flex items-center gap-3 px-4 py-3 text-sm border-b">
+                  <SyncStatus />
+                </div>
                 <Link
                   to="/graph"
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent w-full',
+                    'flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent w-full',
                     location.pathname === '/graph' && 'text-foreground font-medium'
                   )}
                 >
-                  <Network className="h-4 w-4" />
+                  <Network className="h-5 w-5" />
                   {t('nav.knowledgeGraph')}
                 </Link>
                 <Link
                   to="/settings"
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent w-full',
+                    'flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent w-full',
                     location.pathname === '/settings' && 'text-foreground font-medium'
                   )}
                 >
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-5 w-5" />
                   {t('nav.settings')}
                 </Link>
-                <button
-                  onClick={() => { toggleRight(); setMobileMenuOpen(false); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent w-full text-left"
-                >
-                  {rightOpen ? (
-                    <PanelRightClose className="h-4 w-4" />
-                  ) : (
-                    <PanelRightOpen className="h-4 w-4" />
-                  )}
-                  {rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
-                </button>
-                <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                <div className="flex items-center gap-3 px-4 py-3 text-sm">
                   <ThemeToggle />
                 </div>
               </div>
             )}
           </div>
+
+          {/* Mobile backlinks toggle — rightmost button */}
+          <button
+            onClick={toggleRight}
+            className="md:hidden p-2.5 rounded hover:bg-accent text-muted-foreground"
+            title={rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
+          >
+            {rightOpen ? (
+              <PanelRightClose className="h-5 w-5" />
+            ) : (
+              <PanelRightOpen className="h-5 w-5" />
+            )}
+          </button>
         </div>
       </header>
 
@@ -264,15 +273,15 @@ export function Layout({
             <aside
               className={cn(
                 'shrink-0 border-r overflow-y-auto bg-sidebar-background text-sidebar-foreground z-40',
-                'fixed inset-y-0 left-0 top-11 md:relative md:top-0'
+                'fixed top-0 bottom-0 left-0 md:relative md:bottom-auto'
               )}
-              style={{ width: isMobileRef.current ? 280 : leftWidth }}
+              style={{ width: isMobileRef.current ? '100%' : leftWidth }}
             >
               {/* Close button on mobile */}
-              <div className="flex items-center justify-between px-2 py-1.5 border-b md:hidden">
-                <span className="text-xs font-semibold text-muted-foreground">{t('nav.files')}</span>
-                <button onClick={toggleLeft} className="p-1 rounded hover:bg-accent">
-                  <X className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center justify-between px-3 py-2 border-b md:hidden">
+                <span className="text-sm font-semibold text-muted-foreground">{t('nav.files')}</span>
+                <button onClick={toggleLeft} className="p-2 rounded hover:bg-accent">
+                  <X className="h-5 w-5 text-muted-foreground" />
                 </button>
               </div>
               <FileTree />
@@ -295,14 +304,14 @@ export function Layout({
             <aside
               className={cn(
                 'shrink-0 border-l flex flex-col bg-sidebar-background text-sidebar-foreground z-40',
-                'fixed inset-y-0 right-0 top-11 md:relative md:top-0'
+                'fixed top-0 bottom-0 right-0 md:relative md:bottom-auto'
               )}
-              style={{ width: isMobileRef.current ? 300 : rightWidth }}
+              style={{ width: isMobileRef.current ? '100%' : rightWidth }}
             >
               {/* Close button on mobile */}
-              <div className="flex items-center justify-end px-2 py-1.5 border-b md:hidden">
-                <button onClick={toggleRight} className="p-1 rounded hover:bg-accent">
-                  <X className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center justify-end px-3 py-2 border-b md:hidden">
+                <button onClick={toggleRight} className="p-2 rounded hover:bg-accent">
+                  <X className="h-5 w-5 text-muted-foreground" />
                 </button>
               </div>
               {rightPanel ?? (

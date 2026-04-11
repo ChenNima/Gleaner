@@ -130,7 +130,7 @@ function TreeNodeItem({
         ref={btnRef}
         onClick={handleClick}
         className={cn(
-          'flex items-center gap-1 w-full text-left px-2 py-1 text-sm hover:bg-accent rounded-sm truncate transition-colors duration-500',
+          'flex items-center gap-1.5 md:gap-1 w-full text-left px-2 py-2 md:py-1 text-sm hover:bg-accent rounded-sm truncate transition-colors duration-500',
           isActive && 'bg-accent text-accent-foreground font-medium',
           highlighted && !isActive && 'bg-primary/20 text-primary'
         )}
@@ -139,20 +139,20 @@ function TreeNodeItem({
         {node.isDir ? (
           <>
             {expanded ? (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 md:h-3.5 md:w-3.5 shrink-0 text-muted-foreground" />
             ) : (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <ChevronRight className="h-4 w-4 md:h-3.5 md:w-3.5 shrink-0 text-muted-foreground" />
             )}
             {expanded ? (
-              <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <FolderOpen className="h-4 w-4 md:h-3.5 md:w-3.5 shrink-0 text-muted-foreground" />
             ) : (
-              <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <Folder className="h-4 w-4 md:h-3.5 md:w-3.5 shrink-0 text-muted-foreground" />
             )}
           </>
         ) : (
           <>
-            <span className="w-3.5 shrink-0" />
-            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="w-4 md:w-3.5 shrink-0" />
+            <FileText className="h-4 w-4 md:h-3.5 md:w-3.5 shrink-0 text-muted-foreground" />
           </>
         )}
         <span className="truncate">{node.name}</span>
@@ -229,7 +229,7 @@ function RepoSection({ repo, onRetry, defaultExpanded = true }: { repo: Repo; on
     <div className="mb-2">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between w-full px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        className="flex items-center justify-between w-full px-2 py-2.5 md:py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
       >
         <div className="flex items-center gap-1">
           {expanded ? (
@@ -298,21 +298,21 @@ export function FileTree({ onRetry }: { onRetry?: (fullName: string) => void }) 
 
   return (
     <div className="py-2 overflow-y-auto h-full">
-      <div className="flex justify-end gap-0.5 px-2 mb-1">
+      <div className="flex justify-end gap-1 md:gap-0.5 px-2 mb-1">
         <button
           onClick={() => refreshActiveProfile()}
           disabled={isSyncing}
           title={t('sync.refresh')}
-          className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40"
+          className="p-1.5 md:p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-40"
         >
-          <RotateCw className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')} />
+          <RotateCw className={cn('h-4 w-4 md:h-3.5 md:w-3.5', isSyncing && 'animate-spin')} />
         </button>
         <button
           onClick={() => setCollapseKey((k) => k + 1)}
           title={t('tree.collapseAll')}
-          className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+          className="p-1.5 md:p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
         >
-          <FoldVertical className="h-3.5 w-3.5" />
+          <FoldVertical className="h-4 w-4 md:h-3.5 md:w-3.5" />
         </button>
       </div>
       {repos.map((repo) => (

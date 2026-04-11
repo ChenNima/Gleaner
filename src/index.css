@@ -107,6 +107,12 @@ button, [role="button"], label[class*="cursor-pointer"], a { cursor: pointer; }
   html, body {
     overscroll-behavior: none;
   }
+  /* Mobile: scale up all rem-based values for better touch targets */
+  @media (max-width: 767px) {
+    html {
+      font-size: 18px;
+    }
+  }
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));

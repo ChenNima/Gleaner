@@ -300,10 +300,10 @@ export default function SettingsPage() {
     <div className="flex flex-col h-dvh">
       <OfflineBar />
       {/* Navbar */}
-      <header className="flex items-center justify-between h-11 px-3 border-b bg-background shrink-0">
+      <header className="flex items-center justify-between h-12 md:h-11 px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
-            <ArrowLeft className="h-4 w-4" />
+          <button onClick={() => navigate(-1)} className="p-2.5 md:p-1.5 rounded hover:bg-accent text-muted-foreground">
+            <ArrowLeft className="h-5 w-5 md:h-4 md:w-4" />
           </button>
           <span className="text-sm font-semibold">{t('settings.title')}</span>
         </div>
@@ -343,26 +343,26 @@ export default function SettingsPage() {
         </nav>
 
         {/* Mobile tab bar */}
-        <div className="flex md:hidden border-b overflow-x-auto shrink-0 bg-background absolute top-11 left-0 right-0 z-10">
+        <div className="flex md:hidden border-b overflow-x-auto shrink-0 bg-background absolute top-12 left-0 right-0 z-10">
           {TAB_DEFS.map((td) => (
             <button
               key={td.id}
               onClick={() => setTab(td.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-2 text-xs whitespace-nowrap border-b-2 transition-colors',
+                'flex items-center gap-2 px-4 py-3 text-xs whitespace-nowrap border-b-2 transition-colors',
                 tab === td.id
                   ? 'border-foreground text-foreground font-medium'
                   : 'border-transparent text-muted-foreground'
               )}
             >
-              <td.icon className="h-3.5 w-3.5" />
+              <td.icon className="h-4 w-4" />
               {t(td.labelKey)}
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto md:pt-0 pt-10">
+        <div className="flex-1 overflow-y-auto md:pt-0 pt-12">
           <div className="max-w-3xl px-6 md:px-10 py-8 space-y-6">
             {/* Alerts */}
             {error && <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">{error}</div>}
