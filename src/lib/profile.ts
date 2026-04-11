@@ -104,15 +104,15 @@ export async function getReposFromProfile(profile: Profile): Promise<Repo[]> {
 
 /** Parse local YAML content into RepoConfig[] */
 export function parseLocalYaml(yamlContent: string): RepoConfig[] {
-  const parsed = yaml.load(yamlContent) as any;
+  const parsed = yaml.load(yamlContent) as Record<string, unknown> | undefined;
   if (!parsed || !Array.isArray(parsed.repos)) return [];
 
-  return parsed.repos
-    .filter((r: any) => r && r.url)
-    .map((r: any) => {
+  return (parsed.repos as Record<string, unknown>[])
+    .filter((r: Record<string, unknown>) => r && r.url)
+    .map((r: Record<string, unknown>) => {
       const rc: RepoConfig = {
-        url: cleanRepoUrl(r.url),
-        label: r.label ?? r.url,
+        url: cleanRepoUrl(r.url as string),
+        label: (r.label as string) ?? (r.url as string),
       };
       if (r.branch && typeof r.branch === 'string') rc.branch = r.branch;
       if (r.commit && typeof r.commit === 'string' && r.commit !== 'latest') rc.commit = r.commit;

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
@@ -18,6 +19,8 @@ import { ResponsiveTable } from './markdown/ResponsiveTable';
 import { RepoImage } from './markdown/RepoImage';
 import { MdLink } from './markdown/MdLink';
 import { RepoVideo } from './markdown/RepoVideo';
+import { FrontmatterCard } from './markdown/FrontmatterCard';
+import { extractFrontmatter } from '../lib/frontmatter';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
@@ -71,14 +74,24 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  const content: JSX.Element | null = useMemo(() => {
-    if (!file?.content) return null;
+  const fileContent = file?.content ?? null;
 
-    const preprocessed = preprocessWikilinks(file.content, resolvedLinks);
+  const frontmatter = useMemo(() => {
+    if (!fileContent) return null;
+    const { meta } = extractFrontmatter(fileContent);
+    return meta;
+  }, [fileContent]);
+
+  const content: JSX.Element | null = useMemo(() => {
+    if (!fileContent) return null;
+
+    const { body } = extractFrontmatter(fileContent);
+    const preprocessed = preprocessWikilinks(body, resolvedLinks);
 
     try {
       const result = unified()
         .use(remarkParse)
+        .use(remarkFrontmatter)
         .use(remarkGfm)
         .use(remarkRehype, { allowDangerousHtml: true })
         .use(rehypeRaw)
@@ -86,20 +99,20 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
         .use(rehypeHighlight, { detect: true, ignoreMissing: true })
         .use(rehypeReact, {
           Fragment,
-          jsx: jsx as any,
-          jsxs: jsxs as any,
+          jsx: jsx as unknown as (type: string, props: Record<string, unknown>) => JSX.Element,
+          jsxs: jsxs as unknown as (type: string, props: Record<string, unknown>) => JSX.Element,
           components: {
-            pre: (props: any) => <CodeBlock {...props} />,
-            table: (props: any) => <ResponsiveTable {...props} />,
-            img: (props: any) => (
+            pre: (props: Record<string, unknown>) => <CodeBlock {...props} />,
+            table: (props: Record<string, unknown>) => <ResponsiveTable {...props} />,
+            img: (props: Record<string, unknown>) => (
               <RepoImage
                 {...props}
                 repoFullName={repoFullName}
                 fileDir={fileDir}
               />
             ),
-            video: (props: any) => <RepoVideo {...props} />,
-            a: (props: any) => (
+            video: (props: Record<string, unknown>) => <RepoVideo {...props} />,
+            a: (props: Record<string, unknown>) => (
               <MdLink
                 {...props}
                 onWikilinkClick={onWikilinkClick}
@@ -117,7 +130,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
     } catch {
       return <p className="text-destructive">{t('md.renderFailed')}</p>;
     }
-  }, [file?.content, resolvedLinks, repoFullName, fileDir, onWikilinkClick, onInternalLinkClick, onFolderClick, handleAnchorClick]);
+  }, [fileContent, resolvedLinks, repoFullName, fileDir, onWikilinkClick, onInternalLinkClick, onFolderClick, handleAnchorClick, t]);
 
   if (loading) {
     return (
@@ -149,6 +162,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
       ref={containerRef}
       className={cn('prose prose-sm dark:prose-invert max-w-none px-8 py-6', `md-theme-${markdownTheme}`)}
     >
+      {frontmatter && <FrontmatterCard meta={frontmatter} />}
       {content}
     </div>
   );

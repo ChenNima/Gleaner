@@ -34,6 +34,18 @@ export interface GraphData {
   links: GraphLink[];
 }
 
+/** force-graph mutates link endpoints from string to object at runtime */
+type LinkEndpoint = string | { id: string };
+
+/** force-graph adds x/y at runtime */
+type ForceGraphNode = GraphNode & { x: number; y: number };
+
+/** Runtime link shape after force-graph mutation */
+interface ForceGraphLink {
+  source: LinkEndpoint;
+  target: LinkEndpoint;
+}
+
 // --- Constants ---
 
 export const NODE_R = 5;
@@ -87,9 +99,9 @@ export function dedupeLinks(links: GraphLink[]): GraphLink[] {
 /** Build adjacency map for hover highlighting */
 export function buildNeighborMap(links: GraphLink[]): Map<string, Set<string>> {
   const map = new Map<string, Set<string>>();
-  for (const link of links) {
-    const s = typeof link.source === 'string' ? link.source : (link.source as any).id;
-    const t = typeof link.target === 'string' ? link.target : (link.target as any).id;
+  for (const link of links as ForceGraphLink[]) {
+    const s = typeof link.source === 'string' ? link.source : link.source.id;
+    const t = typeof link.target === 'string' ? link.target : link.target.id;
     if (!map.has(s)) map.set(s, new Set());
     if (!map.has(t)) map.set(t, new Set());
     map.get(s)!.add(t);
@@ -112,18 +124,18 @@ export interface RenderContext {
 }
 
 export function renderNode(
-  node: any,
+  node: ForceGraphNode,
   ctx: CanvasRenderingContext2D,
   rc: RenderContext
 ) {
-  const x = node.x as number;
-  const y = node.y as number;
-  const isCurrent = node.isCurrent as boolean;
+  const x = node.x;
+  const y = node.y;
+  const isCurrent = node.isCurrent;
   const isHover = node.id === rc.hoverNode;
-  const isExt = node.isExternal as boolean;
+  const isExt = node.isExternal;
   const color = isExt
     ? (rc.isDark ? EXTERNAL_COLOR_DARK : EXTERNAL_COLOR_LIGHT)
-    : rc.repoColors.get(node.repoFullName as string)
+    : rc.repoColors.get(node.repoFullName)
       ?? (isCurrent ? (rc.isDark ? '#38bdf8' : '#0ea5e9') : (rc.isDark ? '#64748b' : '#94a3b8'));
 
   const compact = rc.compact ?? false;
@@ -133,7 +145,7 @@ export function renderNode(
   const maxS = compact ? 2 : MAX_SCALE;
 
   // Highlight logic
-  const lit = !rc.hoverNode || isHover || (rc.neighbors.get(rc.hoverNode)?.has(node.id as string) ?? false);
+  const lit = !rc.hoverNode || isHover || (rc.neighbors.get(rc.hoverNode)?.has(node.id) ?? false);
   const dimmed = rc.hoverNode && !lit;
 
   // Gravity lens scale
@@ -184,7 +196,7 @@ export function renderNode(
 
   // Label — always short filename only, full name via tooltip
   if (!dimmed) {
-    let label = node.name as string;
+    let label = node.name;
     const parenIdx = label.indexOf(' (');
     if (parenIdx > 0) label = label.substring(0, parenIdx);
     const maxLen = compact ? 18 : 24;
@@ -206,7 +218,7 @@ export function renderNode(
 }
 
 export function paintPointerArea(
-  node: any,
+  node: ForceGraphNode,
   color: string,
   ctx: CanvasRenderingContext2D,
   mouseGraphPos: { x: number; y: number } | null,
@@ -233,7 +245,7 @@ export function paintPointerArea(
 }
 
 export function linkColor(
-  link: any,
+  link: ForceGraphLink,
   rc: RenderContext
 ): string {
   if (!rc.hoverNode) return rc.isDark ? 'rgba(148,163,184,0.12)' : 'rgba(100,116,139,0.15)';
@@ -245,7 +257,7 @@ export function linkColor(
   return rc.isDark ? 'rgba(148,163,184,0.04)' : 'rgba(100,116,139,0.05)';
 }
 
-export function linkWidth(link: any, hoverNode: string | null): number {
+export function linkWidth(link: ForceGraphLink, hoverNode: string | null): number {
   if (!hoverNode) return 0.6;
   const s = typeof link.source === 'string' ? link.source : link.source.id;
   const t = typeof link.target === 'string' ? link.target : link.target.id;

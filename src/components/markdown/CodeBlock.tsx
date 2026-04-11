@@ -16,8 +16,8 @@ export function CodeBlock({ children, className, ...rest }: CodeBlockProps) {
 
   // Extract language from child <code> className like "hljs language-ts"
   let language = '';
-  if (children && typeof children === 'object' && 'props' in (children as any)) {
-    const codeProps = (children as any).props;
+  if (children && typeof children === 'object' && 'props' in (children as React.ReactElement<{ className?: string }>)) {
+    const codeProps = (children as React.ReactElement<{ className?: string }>).props;
     const codeClass: string = codeProps?.className ?? '';
     const match = codeClass.match(/language-(\S+)/);
     if (match) language = match[1];

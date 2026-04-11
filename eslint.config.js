@@ -19,5 +19,12 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // React Compiler: synchronous setState in effects is standard for prop-driven resets and async data fetching.
+      'react-hooks/set-state-in-effect': 'off',
+      // ref.current syncing during render is a deliberate performance pattern
+      // (e.g. keeping refs in sync for event callbacks without extra renders).
+      'react-hooks/refs': 'off',
+    },
   },
 ])

@@ -19,8 +19,16 @@ GitHub-based read-only knowledge base (Obsidian-like). Pure SPA, no backend.
 pnpm install          # install deps
 pnpm run dev          # dev server with HMR (localhost:5173)
 pnpm run build        # type-check + production build (tsc -b && vite build)
+pnpm run lint         # eslint check
 npx playwright test   # E2E tests (needs dev server running)
 ```
+
+## Pre-commit Checklist
+
+Before committing, ensure both checks pass with zero errors:
+
+1. `pnpm run build` — TypeScript type-check + Vite production build
+2. `pnpm run lint` — ESLint (must have 0 errors; warnings are acceptable)
 
 ## Project Structure
 

@@ -13,13 +13,31 @@ import {
   buildGroups,
 } from '../lib/graph-utils';
 
+interface D3Force {
+  strength: (n: number) => D3Force;
+  distanceMax: (n: number) => D3Force;
+  distance: (n: number) => D3Force;
+}
+
+interface ForceGraphRef {
+  d3Force: (name: string) => D3Force | undefined;
+  zoomToFit: (ms: number, padding: number) => void;
+  screen2GraphCoords: (x: number, y: number) => { x: number; y: number };
+}
+
+/** GraphNode with canvas coordinates added at runtime by force-graph */
+type PositionedNode = GraphNode & { x: number; y: number };
+
+/** Link where source/target may be mutated from string to object by force-graph */
+type RuntimeLink = GraphLink | { source: string | { id: string }; target: string | { id: string } };
+
 export default function GraphPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [rawData, setRawData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
   const [repoColors, setRepoColors] = useState<Map<string, string>>(new Map());
   const [hoverNode, setHoverNode] = useState<string | null>(null);
-  const fgRef = useRef<any>(null);
+  const fgRef = useRef<ForceGraphRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseGraphPos = useRef<{ x: number; y: number } | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -42,8 +60,8 @@ export default function GraphPage() {
     const nodesCopy = filteredNodes.map((n) => ({ ...n }));
     // Rebuild links as fresh string-only copies (force graph mutates source/target to objects)
     const linksCopy = filteredLinks.map((l) => ({
-      source: typeof l.source === 'string' ? l.source : (l.source as any).id as string,
-      target: typeof l.target === 'string' ? l.target : (l.target as any).id as string,
+      source: typeof l.source === 'string' ? l.source : (l.source as unknown as { id: string }).id,
+      target: typeof l.target === 'string' ? l.target : (l.target as unknown as { id: string }).id,
     }));
     const grps = buildGroups(nodesCopy, linksCopy, repoColors, isDark);
 
@@ -157,12 +175,12 @@ export default function GraphPage() {
   }, []);
 
   const handleNodeClick = useCallback(
-    (node: any) => {
+    (node: PositionedNode) => {
       if (node.isExternal && node.url) {
         window.open(node.url, '_blank', 'noopener');
         return;
       }
-      const route = nodeToRoute(node.id as string);
+      const route = nodeToRoute(node.id);
       if (route) navigate(route);
     },
     [navigate]
@@ -263,22 +281,22 @@ export default function GraphPage() {
         )}
         {hasData && dimensions && (
           <ForceGraph2D
-            ref={fgRef}
-            graphData={data as any}
+            ref={fgRef as never}
+            graphData={data as never}
             width={dimensions.width}
             height={dimensions.height}
             nodeCanvasObjectMode={() => 'replace'}
-            nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) =>
+            nodeCanvasObject={(node: PositionedNode, ctx: CanvasRenderingContext2D) =>
               renderNode(node, ctx, { ...rc, mouseGraphPos: mouseGraphPos.current })
             }
-            nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) =>
+            nodePointerAreaPaint={(node: PositionedNode, color: string, ctx: CanvasRenderingContext2D) =>
               paintPointerArea(node, color, ctx, mouseGraphPos.current, true)
             }
-            nodeLabel={(node: any) => node.name}
+            nodeLabel={(node: PositionedNode) => node.name}
             onNodeClick={handleNodeClick}
-            onNodeHover={(node: any) => setHoverNode(node?.id ?? null)}
-            linkColor={(link: any) => linkColor(link, { ...rc, mouseGraphPos: mouseGraphPos.current })}
-            linkWidth={(link: any) => linkWidth(link, hoverNode)}
+            onNodeHover={(node: PositionedNode | null) => setHoverNode(node?.id ?? null)}
+            linkColor={(link: RuntimeLink) => linkColor(link, { ...rc, mouseGraphPos: mouseGraphPos.current })}
+            linkWidth={(link: RuntimeLink) => linkWidth(link, hoverNode)}
             linkDirectionalParticles={0}
             backgroundColor="transparent"
             d3AlphaDecay={0.02}

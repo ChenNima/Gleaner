@@ -15,7 +15,7 @@ import {
   importFromGithub, importFromYamlString, exportAsYamlFile,
   type RepoConfig,
 } from '../lib/profile';
-import type { Profile } from '../db';
+import type { Profile, Repo } from '../db';
 import { useAppStore } from '../stores/app';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { db } from '../db';
@@ -585,7 +585,7 @@ function RepositoriesTab({ activeProfile, githubRepo, localRepos, editorTab, yam
   yamlText: string;
   yamlError: string | null;
   dragIdx: number | null;
-  repos: any[];
+  repos: Repo[];
   onGithubRepoChange: (v: string) => void;
   onTabSwitch: (t: 'form' | 'yaml') => void;
   onYamlChange: (v: string) => void;

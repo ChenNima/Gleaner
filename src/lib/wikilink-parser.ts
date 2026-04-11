@@ -1,5 +1,6 @@
 import { db, getActiveRepoNames } from '../db';
 import type { WikiLink, MdFile } from '../db';
+import { extractFrontmatter } from './frontmatter';
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
 const MD_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g;
@@ -80,6 +81,26 @@ function domainFromUrl(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
 }
 
+const FRONTMATTER_URL_KEYS = new Set(['url', 'link', 'source_url', 'href']);
+
+/**
+ * Extract URLs from YAML frontmatter fields
+ */
+export function extractFrontmatterLinks(content: string): { title: string; url: string }[] {
+  const { meta } = extractFrontmatter(content);
+  if (!meta) return [];
+
+  const results: { title: string; url: string }[] = [];
+  for (const [key, value] of Object.entries(meta)) {
+    if (!FRONTMATTER_URL_KEYS.has(key.toLowerCase())) continue;
+    if (typeof value !== 'string') continue;
+    if (!value.startsWith('http://') && !value.startsWith('https://')) continue;
+    const title = domainFromUrl(value);
+    results.push({ title, url: value });
+  }
+  return results;
+}
+
 /**
  * Parse wikilinks and standard markdown links from a file and write to the links table
  */
@@ -105,15 +126,31 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
     links.push({ sourceFileId: file.id, targetTitle: title, targetFileId: targetFileId });
   }
 
-  // Extract external links
+  // Extract external links from markdown body
   const extLinks = extractExternalLinks(file.content);
+  const seenUrls = new Set<string>();
   for (const ext of extLinks) {
+    seenUrls.add(ext.url);
     links.push({
       sourceFileId: file.id,
       targetTitle: ext.title,
       targetFileId: null,
       isExternal: true,
       targetUrl: ext.url,
+    });
+  }
+
+  // Extract external links from frontmatter metadata
+  const fmLinks = extractFrontmatterLinks(file.content);
+  for (const fm of fmLinks) {
+    if (seenUrls.has(fm.url)) continue;
+    seenUrls.add(fm.url);
+    links.push({
+      sourceFileId: file.id,
+      targetTitle: fm.title,
+      targetFileId: null,
+      isExternal: true,
+      targetUrl: fm.url,
     });
   }
 

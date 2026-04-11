@@ -18,7 +18,7 @@ interface LocalGraphProps {
 export function LocalGraph({ fileId }: LocalGraphProps) {
   const navigate = useNavigate();
   const [data, setData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
-  const fgRef = useRef<any>(null);
+  const fgRef = useRef<{ screen2GraphCoords?: (x: number, y: number) => { x: number; y: number }; zoomToFit: (ms: number, padding: number) => void } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseGraphPos = useRef<{ x: number; y: number } | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -118,12 +118,12 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
   }, [fileId]);
 
   const handleNodeClick = useCallback(
-    (node: any) => {
+    (node: GraphNode) => {
       if (node.isExternal && node.url) {
         window.open(node.url, '_blank', 'noopener');
         return;
       }
-      const route = nodeToRoute(node.id as string);
+      const route = nodeToRoute(node.id);
       if (route) navigate(route);
     },
     [navigate]
@@ -154,18 +154,18 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
       )}
       {!overlay && dimensions && (
         <ForceGraph2D
-          ref={fgRef}
-          graphData={data as any}
+          ref={fgRef as React.RefObject<never>}
+          graphData={data as unknown as { nodes: object[]; links: object[] }}
           width={dimensions.width}
           height={dimensions.height}
-          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) =>
-            renderNode(node, ctx, { ...rc, mouseGraphPos: mouseGraphPos.current })
+          nodeCanvasObject={(node, ctx) =>
+            renderNode(node as unknown as GraphNode & { x: number; y: number }, ctx, { ...rc, mouseGraphPos: mouseGraphPos.current })
           }
-          nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) =>
-            paintPointerArea(node, color, ctx, mouseGraphPos.current, true, true)
+          nodePointerAreaPaint={(node, color, ctx) =>
+            paintPointerArea(node as unknown as GraphNode & { x: number; y: number }, color, ctx, mouseGraphPos.current, true, true)
           }
-          nodeLabel={(node: any) => node.name}
-          onNodeClick={handleNodeClick}
+          nodeLabel={(node) => (node as unknown as GraphNode).name}
+          onNodeClick={(node) => handleNodeClick(node as unknown as GraphNode)}
           linkColor={() => isDark ? 'rgba(148,163,184,0.25)' : 'rgba(100,116,139,0.3)'}
           linkWidth={0.8}
           backgroundColor="transparent"

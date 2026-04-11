@@ -69,7 +69,7 @@ export async function fetchAndParseConfig(configRepoFullName: string): Promise<R
     throw new ConfigParseError('"repos" must be an array');
   }
 
-  return config.repos.map((r: any, i: number) => {
+  return config.repos.map((r, i) => {
     if (!r.url) {
       throw new ConfigParseError(`Entry ${i}: missing "url" field`);
     }
