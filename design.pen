@@ -8369,7 +8369,8 @@
                       "fill": "#78716C",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -9078,7 +9079,8 @@
                       "fill": "#78716C",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -9674,7 +9676,8 @@
                       "fill": "#78716C",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -10370,7 +10373,8 @@
                       "fill": "#78716C",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -10983,7 +10987,8 @@
                       "fill": "#A8A29E",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -11692,7 +11697,8 @@
                       "fill": "#A8A29E",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -12288,7 +12294,8 @@
                       "fill": "#A8A29E",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -12984,7 +12991,8 @@
                       "fill": "#A8A29E",
                       "content": "Profiles",
                       "fontFamily": "DM Sans",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -13591,7 +13599,7 @@
                           "height": 16,
                           "iconFontName": "shield-check",
                           "iconFontFamily": "lucide",
-                          "fill": "#18181B"
+                          "fill": "#D97706"
                         },
                         {
                           "type": "frame",
@@ -13642,7 +13650,7 @@
                           "height": 16,
                           "iconFontName": "lock",
                           "iconFontFamily": "lucide",
-                          "fill": "#18181B"
+                          "fill": "#16A34A"
                         },
                         {
                           "type": "frame",
@@ -13693,7 +13701,7 @@
                           "height": 16,
                           "iconFontName": "key-round",
                           "iconFontFamily": "lucide",
-                          "fill": "#18181B"
+                          "fill": "#2563EB"
                         },
                         {
                           "type": "frame",
