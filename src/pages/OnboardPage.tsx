@@ -12,7 +12,7 @@ import {
 } from '../lib/profile';
 import { cn } from '../lib/utils';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { setGithubProxy } from '../lib/github';
+import { setGithubProxy, normalizeRepoSlug } from '../lib/github';
 import { setLanguage, getLanguageSetting } from '../i18n';
 import { canInstall, isInstalled, installPWA, onInstallChange } from '../lib/pwa';
 
@@ -69,7 +69,7 @@ export default function OnboardPage() {
         const profile = await createProfile('Default', 'local');
         const configs: RepoConfig[] = localRepos
           .filter((r) => r.url.trim())
-          .map((r) => ({ url: r.url.trim(), label: r.label.trim() || r.url.trim() }));
+          .map((r) => ({ url: normalizeRepoSlug(r.url), label: r.label.trim() || r.url.trim() }));
         if (configs.length === 0) {
           configs.push({ url: DOCS_REPO, label: 'Gleaner Docs' });
         }
@@ -77,7 +77,7 @@ export default function OnboardPage() {
         await switchProfile(profile.id);
       } else {
         const profile = await createProfile('Default', 'github');
-        await updateProfile(profile.id, { githubRepo: githubConfigRepo.trim() });
+        await updateProfile(profile.id, { githubRepo: normalizeRepoSlug(githubConfigRepo) });
         await switchProfile(profile.id);
       }
       navigate('/', { replace: true });

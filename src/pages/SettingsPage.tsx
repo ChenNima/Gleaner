@@ -10,6 +10,7 @@ import {
 
 const YamlEditor = lazy(() => import('../components/YamlEditor').then((m) => ({ default: m.YamlEditor })));
 import { getPat, setPat, clearPat } from '../lib/auth';
+import { normalizeRepoSlug, RepoFormatError } from '../lib/github';
 import {
   getProfiles, getActiveProfile, createProfile, updateProfile,
   deleteProfile, switchProfile, parseLocalYaml, repoConfigsToYaml,
@@ -164,9 +165,10 @@ export default function SettingsPage() {
 
       if (activeProfile.type === 'github') {
         if (!githubRepo.trim()) { setError(t('settings.repos.enterConfigRepo')); setSaving(false); return; }
-        await updateProfile(activeProfile.id, { githubRepo: githubRepo.trim() });
+        await updateProfile(activeProfile.id, { githubRepo: normalizeRepoSlug(githubRepo) });
       } else {
-        const yamlContent = editorTab === 'yaml' ? yamlText : repoConfigsToYaml(localRepos);
+        const normalized = localRepos.map((r) => ({ ...r, url: r.url.trim() ? normalizeRepoSlug(r.url) : r.url }));
+        const yamlContent = editorTab === 'yaml' ? yamlText : repoConfigsToYaml(normalized);
         await updateProfile(activeProfile.id, { yamlContent });
       }
       await switchProfile(activeProfile.id);
@@ -174,7 +176,11 @@ export default function SettingsPage() {
       setSuccess(t('settings.repos.saved'));
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof RepoFormatError) {
+        setError(t('error.invalidRepoFormat', { input: err.input }));
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setSaving(false);
     }
@@ -200,7 +206,7 @@ export default function SettingsPage() {
     setImporting(true);
     setError(null);
     try {
-      const repos = await importFromGithub(importGithubUrl.trim());
+      const repos = await importFromGithub(normalizeRepoSlug(importGithubUrl));
       setLocalRepos(repos);
       setYamlText(repoConfigsToYaml(repos));
       setSuccess(t('settings.ie.importedGithub', { count: repos.length }));

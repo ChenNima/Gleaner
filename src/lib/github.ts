@@ -7,6 +7,21 @@ import {
 
 const API_BASE = 'https://api.github.com';
 
+/**
+ * Normalize any GitHub repo identifier to "owner/repo" slug.
+ * Accepts: owner/repo, https://github.com/owner/repo(.git),
+ *          github.com/owner/repo, git@github.com:owner/repo(.git)
+ */
+export function normalizeRepoSlug(input: string): string {
+  return input
+    .trim()
+    .replace(/^git@github\.com:/, '')
+    .replace(/^https?:\/\/(www\.)?github\.com\//, '')
+    .replace(/^github\.com\//, '')
+    .replace(/\.git$/, '')
+    .replace(/\/+$/, '');
+}
+
 const PROXY_KEY = 'gleaner-github-proxy';
 
 export function getGithubProxy(): string {
@@ -159,11 +174,21 @@ export async function getFileContent(
  * Parse "owner/repo" string
  */
 export function parseRepoFullName(fullName: string): { owner: string; repo: string } {
-  const parts = fullName.split('/');
+  const normalized = normalizeRepoSlug(fullName);
+  const parts = normalized.split('/');
   if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    throw new Error(`Invalid repo format: "${fullName}". Expected "owner/repo".`);
+    throw new RepoFormatError(fullName);
   }
   return { owner: parts[0], repo: parts[1] };
+}
+
+export class RepoFormatError extends Error {
+  public readonly input: string;
+  constructor(input: string) {
+    super(`Invalid repo format: "${input}"`);
+    this.name = 'RepoFormatError';
+    this.input = input;
+  }
 }
 
 /**

@@ -1,6 +1,6 @@
 import yaml from 'js-yaml';
 import { db } from '../db';
-import { getFileContent, parseRepoFullName } from './github';
+import { getFileContent, parseRepoFullName, normalizeRepoSlug } from './github';
 import { ConfigParseError, ConfigNotFoundError, RepoNotFoundError } from './errors';
 import type { Repo } from '../db';
 
@@ -29,18 +29,8 @@ export async function setConfigRepo(fullName: string): Promise<void> {
   await db.config.put({ key: CONFIG_REPO_KEY, value: fullName });
 }
 
-function parseRepoUrl(url: string): string {
-  // Support formats: "github.com/owner/repo", "https://github.com/owner/repo", "owner/repo"
-  const cleaned = url
-    .replace(/^https?:\/\//, '')
-    .replace(/^github\.com\//, '')
-    .replace(/\.git$/, '')
-    .trim();
-  return cleaned;
-}
-
 export async function fetchAndParseConfig(configRepoFullName: string): Promise<RepoConfig[]> {
-  const { owner, repo } = parseRepoFullName(configRepoFullName);
+  const { owner, repo } = parseRepoFullName(normalizeRepoSlug(configRepoFullName));
 
   let content: string;
   try {
@@ -74,7 +64,7 @@ export async function fetchAndParseConfig(configRepoFullName: string): Promise<R
       throw new ConfigParseError(`Entry ${i}: missing "url" field`);
     }
     const rc: RepoConfig = {
-      url: parseRepoUrl(r.url),
+      url: normalizeRepoSlug(r.url),
       label: r.label ?? r.url,
     };
     if (r.branch && typeof r.branch === 'string') rc.branch = r.branch;

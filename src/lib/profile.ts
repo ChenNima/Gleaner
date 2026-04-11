@@ -3,6 +3,7 @@ import { db } from '../db';
 import type { Profile, Repo } from '../db';
 import { fetchAndParseConfig, type RepoConfig } from './config';
 export type { RepoConfig } from './config';
+import { normalizeRepoSlug } from './github';
 import { syncAllRepos } from './sync';
 import { useAppStore } from '../stores/app';
 
@@ -111,7 +112,7 @@ export function parseLocalYaml(yamlContent: string): RepoConfig[] {
     .filter((r: Record<string, unknown>) => r && r.url)
     .map((r: Record<string, unknown>) => {
       const rc: RepoConfig = {
-        url: cleanRepoUrl(r.url as string),
+        url: normalizeRepoSlug(r.url as string),
         label: (r.label as string) ?? (r.url as string),
       };
       if (r.branch && typeof r.branch === 'string') rc.branch = r.branch;
@@ -160,13 +161,6 @@ export function exportAsYamlFile(configs: RepoConfig[]) {
   URL.revokeObjectURL(url);
 }
 
-function cleanRepoUrl(url: string): string {
-  return url
-    .replace(/^https?:\/\//, '')
-    .replace(/^github\.com\//, '')
-    .replace(/\.git$/, '')
-    .trim();
-}
 
 /**
  * Switch to a different profile:
