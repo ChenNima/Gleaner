@@ -26,6 +26,11 @@ test-results/
 node_modules/
 dist/
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Gleaner specific
 .chorus
 .playwright-mcp
