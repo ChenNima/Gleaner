@@ -15,6 +15,7 @@ A read-only knowledge base reader that turns GitHub repositories into an Obsidia
 - **Multi-repo** — Aggregate multiple GitHub repositories into a single reading interface
 - **Profiles** — Switch between different repo configurations (local YAML or GitHub-hosted)
 - **Advanced repo config** — Branch selection, commit pinning, include/exclude path filters
+- **PWA** — Installable as a standalone app, works offline with Service Worker caching
 - **Offline capable** — Content cached in IndexedDB, reads work without network
 - **i18n** — English and Chinese interface
 - **Dark mode** — System-aware theme with 5 document styles (GitHub, Obsidian, Academic, Notion, Newsprint)
@@ -57,6 +58,16 @@ repos:
 ```
 
 See the [documentation](https://github.com/ChenNima/Gleaner-Docs) for details.
+
+## PWA Support
+
+Gleaner is a Progressive Web App. After your first visit, the Service Worker caches all static assets so you can:
+
+- **Install to home screen** — Use the install button in Settings > Cache & Data, or your browser's install prompt
+- **Work offline** — Refresh or reopen the app without network; cached content loads from IndexedDB
+- **Auto-update** — New versions activate silently in the background
+
+No installation required — offline support works in any modern browser after the first load.
 
 ## Tech Stack
 

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ShieldCheck, Lock, KeyRound, Rocket, FolderPlus, GitBranch,
-  ArrowRight, ArrowLeft, Download, Plus, X, Check,
+  ArrowRight, ArrowLeft, Download, Plus, X, Check, Smartphone,
 } from 'lucide-react';
 import { setPat } from '../lib/auth';
 import {
@@ -14,6 +14,7 @@ import { cn } from '../lib/utils';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { setGithubProxy } from '../lib/github';
 import { setLanguage, getLanguageSetting } from '../i18n';
+import { canInstall, isInstalled, installPWA, onInstallChange } from '../lib/pwa';
 
 const DOCS_REPO = 'ChenNima/Gleaner-Docs';
 
@@ -175,11 +176,47 @@ function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, 
   onNext: () => void;
   t: (key: string) => string;
 }) {
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    return onInstallChange(() => forceUpdate((n) => n + 1));
+  }, []);
+
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-xl font-semibold text-foreground">{t('onboard.token.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('onboard.token.subtitle')}</p>
+      {/* Hero with logo */}
+      <div className="text-center space-y-3">
+        <img src="/gleaner.png" alt="Gleaner" className="h-16 w-16 mx-auto" />
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{t('onboard.token.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('onboard.token.subtitle')}</p>
+        </div>
+      </div>
+
+      {/* PWA Install */}
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex gap-3">
+          <div className="shrink-0 mt-0.5">
+            <Smartphone className="h-4 w-4 text-violet-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">{t('onboard.pwa.title')}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('onboard.pwa.desc')}</p>
+          </div>
+        </div>
+        {canInstall() ? (
+          <button
+            onClick={() => installPWA()}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t('onboard.pwa.install')}
+          </button>
+        ) : isInstalled() ? (
+          <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+            <Check className="h-3.5 w-3.5" />
+            <span>{t('onboard.pwa.installed')}</span>
+          </div>
+        ) : null}
       </div>
 
       {/* Info cards */}
