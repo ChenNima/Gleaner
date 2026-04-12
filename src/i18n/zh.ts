@@ -52,6 +52,8 @@ const zh = {
   'md.selectFile': '选择一个文件查看',
   'md.loadingContent': '加载内容中...',
   'md.copyCode': '复制代码',
+  'md.mermaidLoading': '加载图表中...',
+  'md.mermaidError': '图表渲染失败',
 
   // File tree
   'tree.noRepos': '未配置仓库',

@@ -1,11 +1,21 @@
 import { useState, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
+import { MermaidBlock } from './MermaidBlock';
 
 interface CodeBlockProps {
   children?: ReactNode;
   className?: string;
   [key: string]: unknown;
+}
+
+function extractCodeText(children: ReactNode): string {
+  if (!children || typeof children !== 'object' || !('props' in (children as React.ReactElement))) return '';
+  const codeEl = children as React.ReactElement<{ children?: ReactNode }>;
+  const inner = codeEl.props?.children;
+  if (typeof inner === 'string') return inner;
+  if (Array.isArray(inner)) return inner.map((c) => (typeof c === 'string' ? c : '')).join('');
+  return '';
 }
 
 /** Wraps <pre> elements with a copy button and language label. */
@@ -21,6 +31,12 @@ export function CodeBlock({ children, className, ...rest }: CodeBlockProps) {
     const codeClass: string = codeProps?.className ?? '';
     const match = codeClass.match(/language-(\S+)/);
     if (match) language = match[1];
+  }
+
+  // Intercept mermaid code blocks — render as diagram instead of highlighted code
+  if (language === 'mermaid') {
+    const code = extractCodeText(children);
+    if (code) return <MermaidBlock code={code.trim()} />;
   }
 
   const handleCopy = async () => {

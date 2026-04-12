@@ -52,6 +52,8 @@ const en = {
   'md.selectFile': 'Select a file to view',
   'md.loadingContent': 'Loading content...',
   'md.copyCode': 'Copy code',
+  'md.mermaidLoading': 'Loading diagram...',
+  'md.mermaidError': 'Diagram render failed',
 
   // File tree
   'tree.noRepos': 'No repositories configured',
