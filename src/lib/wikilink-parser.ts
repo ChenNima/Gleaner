@@ -193,15 +193,93 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
 }
 
 /**
+ * Pre-built index for O(1) wikilink resolution.
+ */
+interface FileIndex {
+  fileIdSet: Set<string>;
+  /** lowercase filename (without .md) → files */
+  nameMap: Map<string, MdFile[]>;
+  /** lowercase frontmatter title → files */
+  titleMap: Map<string, MdFile[]>;
+  /** lowercase path suffix (without .md) → files, e.g. "getting-started/quick start" */
+  pathSuffixMap: Map<string, MdFile[]>;
+}
+
+function buildFileIndex(allFiles: MdFile[]): FileIndex {
+  const fileIdSet = new Set(allFiles.map((f) => f.id));
+  const nameMap = new Map<string, MdFile[]>();
+  const titleMap = new Map<string, MdFile[]>();
+  const pathSuffixMap = new Map<string, MdFile[]>();
+
+  for (const file of allFiles) {
+    // Index by filename
+    const fileName = stripMdExtension(file.path.split('/').pop() ?? '').toLowerCase();
+    pushToMap(nameMap, fileName, file);
+
+    // Index by frontmatter title
+    if (file.title) {
+      pushToMap(titleMap, file.title.toLowerCase(), file);
+    }
+
+    // Index by all path suffixes for path-based matching
+    const normalized = stripMdExtension(file.path).toLowerCase();
+    const parts = normalized.split('/');
+    // Full path and every suffix with at least one directory component
+    for (let i = 0; i < parts.length; i++) {
+      pushToMap(pathSuffixMap, parts.slice(i).join('/'), file);
+    }
+  }
+
+  return { fileIdSet, nameMap, titleMap, pathSuffixMap };
+}
+
+function pushToMap(map: Map<string, MdFile[]>, key: string, file: MdFile): void {
+  const arr = map.get(key);
+  if (arr) arr.push(file);
+  else map.set(key, [file]);
+}
+
+/**
+ * Look up a wikilink target using a pre-built index. O(1) per lookup.
+ */
+function findMatchingFileIndexed(
+  index: FileIndex,
+  rawTarget: string,
+  sourceRepo: string | null,
+): MdFile | null {
+  const target = stripMdExtension(rawTarget).toLowerCase();
+  if (!target) return null;
+
+  let candidates: MdFile[];
+
+  if (target.includes('/')) {
+    candidates = index.pathSuffixMap.get(target) ?? [];
+  } else {
+    // Merge name + title matches, dedupe
+    const byName = index.nameMap.get(target) ?? [];
+    const byTitle = index.titleMap.get(target) ?? [];
+    if (byTitle.length === 0) {
+      candidates = byName;
+    } else if (byName.length === 0) {
+      candidates = byTitle;
+    } else {
+      const seen = new Set<string>();
+      candidates = [];
+      for (const f of byName) { seen.add(f.id); candidates.push(f); }
+      for (const f of byTitle) { if (!seen.has(f.id)) candidates.push(f); }
+    }
+  }
+
+  return pickBestCandidate(candidates, sourceRepo);
+}
+
+/**
  * Resolve all unresolved wikilinks globally.
- * Strategy matches resolveWikilink:
- * 1. Strip .md from target, then match by filename and frontmatter title
- * 2. Support path-suffix matching when target contains /
- * 3. Prefer same repo, then shortest path
+ * Builds an index first for O(N+M) total instead of O(N×M).
  */
 export async function resolveAllLinks(): Promise<void> {
   const allFiles = await db.files.toArray();
-  const fileIdSet = new Set(allFiles.map((f) => f.id));
+  const index = buildFileIndex(allFiles);
 
   const allLinks = await db.links.toArray();
 
@@ -211,14 +289,14 @@ export async function resolveAllLinks(): Promise<void> {
 
     // If targetFileId is already set (from standard markdown links), verify it exists
     if (link.targetFileId) {
-      if (!fileIdSet.has(link.targetFileId)) {
+      if (!index.fileIdSet.has(link.targetFileId)) {
         await db.links.update(link.id!, { targetFileId: null });
       }
       continue;
     }
 
     const sourceRepo = link.sourceFileId.split('::')[0];
-    const resolved = findMatchingFile(allFiles, link.targetTitle, sourceRepo);
+    const resolved = findMatchingFileIndexed(index, link.targetTitle, sourceRepo);
 
     if (resolved && link.targetFileId !== resolved.id) {
       await db.links.update(link.id!, { targetFileId: resolved.id });
@@ -295,11 +373,26 @@ export async function resolveWikilink(
 }
 
 /**
- * Core matching logic shared by resolveWikilink and resolveAllLinks.
- *
- * 1. Strip .md from target
- * 2. If target contains '/', do path-suffix match; otherwise match filename + frontmatter title
- * 3. Among candidates: prefer same repo, then shortest path
+ * Among candidates: prefer same repo, then shortest path.
+ */
+function pickBestCandidate(candidates: MdFile[], sourceRepo: string | null): MdFile | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  if (sourceRepo) {
+    const sameRepo = candidates.filter((f) => f.repoFullName === sourceRepo);
+    if (sameRepo.length === 1) return sameRepo[0];
+    if (sameRepo.length > 1) {
+      return sameRepo.sort((a, b) => a.path.length - b.path.length)[0];
+    }
+  }
+
+  return candidates.sort((a, b) => a.path.length - b.path.length)[0];
+}
+
+/**
+ * Core matching logic for resolveWikilink (single lookup, no pre-built index).
+ * Uses linear scan — fine for one-off calls, use findMatchingFileIndexed for batch.
  */
 function findMatchingFile(
   allFiles: MdFile[],
@@ -309,18 +402,15 @@ function findMatchingFile(
   const target = stripMdExtension(rawTarget).toLowerCase();
   if (!target) return null;
 
-  const hasPath = target.includes('/');
   let candidates: MdFile[];
 
-  if (hasPath) {
-    // Path-suffix match: file.path (without .md) must end with target
+  if (target.includes('/')) {
     const suffix = '/' + target;
     candidates = allFiles.filter((f) => {
       const normalized = stripMdExtension(f.path).toLowerCase();
       return normalized === target || normalized.endsWith(suffix);
     });
   } else {
-    // Match by filename (without .md) OR frontmatter title
     candidates = allFiles.filter((f) => {
       const fileName = stripMdExtension(f.path.split('/').pop() ?? '').toLowerCase();
       if (fileName === target) return true;
@@ -329,19 +419,5 @@ function findMatchingFile(
     });
   }
 
-  if (candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0];
-
-  // Prefer same repo
-  if (sourceRepo) {
-    const sameRepo = candidates.filter((f) => f.repoFullName === sourceRepo);
-    if (sameRepo.length === 1) return sameRepo[0];
-    if (sameRepo.length > 1) {
-      // Among same-repo candidates, pick shortest path
-      return sameRepo.sort((a, b) => a.path.length - b.path.length)[0];
-    }
-  }
-
-  // Fallback: shortest path
-  return candidates.sort((a, b) => a.path.length - b.path.length)[0];
+  return pickBestCandidate(candidates, sourceRepo);
 }
