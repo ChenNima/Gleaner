@@ -21,6 +21,7 @@ import { MdLink } from './markdown/MdLink';
 import { RepoVideo } from './markdown/RepoVideo';
 import { FrontmatterCard } from './markdown/FrontmatterCard';
 import { extractFrontmatter } from '../lib/frontmatter';
+import { headingToSlug } from '../lib/wikilink-parser';
 
 // Matches [[target#heading|alias]], all parts optional except the brackets
 const WIKILINK_REGEX = /\[\[([^\]|#]*?)(?:#([^\]|]*?))?(?:\|([^\]]+))?\]\]/g;
@@ -75,8 +76,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
   const fileDir = file?.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
 
   const handleAnchorClick = useCallback((id: string) => {
-    // rehype-slug generates kebab-case ids from heading text
-    const slug = id.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+    const slug = headingToSlug(id);
     const el = containerRef.current?.querySelector(`[id="${CSS.escape(slug)}"]`)
       ?? containerRef.current?.querySelector(`[id="${CSS.escape(id)}"]`)
       ?? containerRef.current?.querySelector(`[id="${CSS.escape(id.toLowerCase())}"]`);

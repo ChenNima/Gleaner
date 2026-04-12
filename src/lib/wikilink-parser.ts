@@ -2,6 +2,13 @@ import { db, getActiveRepoNames } from '../db';
 import type { WikiLink, MdFile } from '../db';
 import { extractFrontmatter } from './frontmatter';
 
+/**
+ * Convert a heading string to a slug matching rehype-slug's output.
+ */
+export function headingToSlug(heading: string): string {
+  return heading.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+}
+
 // Captures: group1=target (file part, may be empty), group2=heading, group3=alias
 const WIKILINK_REGEX = /\[\[([^\]|#]*?)(?:#([^\]|]*?))?(?:\|([^\]]+))?\]\]/g;
 const MD_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g;

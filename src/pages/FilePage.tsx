@@ -6,7 +6,7 @@ import { DocumentThemePicker } from '../components/DocumentThemePicker';
 import { db } from '../db';
 import type { MdFile } from '../db';
 import { getFileContent } from '../lib/github';
-import { resolveWikilink, extractWikilinks } from '../lib/wikilink-parser';
+import { resolveWikilink, extractWikilinks, headingToSlug } from '../lib/wikilink-parser';
 import { useAppStore } from '../stores/app';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 
@@ -134,7 +134,7 @@ export default function FilePage() {
     if (hash && scrollRef.current) {
       // Heading anchor from wikilink — scroll to it
       requestAnimationFrame(() => {
-        const slug = hash.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+        const slug = headingToSlug(hash);
         const el = scrollRef.current?.querySelector(`[id="${CSS.escape(slug)}"]`)
           ?? scrollRef.current?.querySelector(`[id="${CSS.escape(hash)}"]`);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
