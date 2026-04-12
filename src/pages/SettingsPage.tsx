@@ -31,7 +31,8 @@ import {
   AlertDialogHeader, AlertDialogFooter, AlertDialogTitle,
   AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '../components/ui/alert-dialog';
-import { canInstall, isInstalled, installPWA, onInstallChange } from '../lib/pwa';
+import { canInstall, isInstalled, installPWA, onInstallChange, checkForUpdate, getUpdateStatus } from '../lib/pwa';
+import type { UpdateStatus } from '../lib/pwa';
 
 type SettingsTab = 'profiles' | 'repositories' | 'token' | 'cache' | 'import-export' | 'language';
 
@@ -981,6 +982,51 @@ function PwaInstallCard() {
   );
 }
 
+/* -- PWA Update Card -- */
+function PwaUpdateCard() {
+  const { t } = useTranslation();
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    return onInstallChange(() => forceUpdate((n) => n + 1));
+  }, []);
+
+  const status: UpdateStatus = getUpdateStatus();
+
+  return (
+    <Card className="p-5 space-y-3">
+      <h3 className="text-sm font-semibold">{t('settings.pwa.update')}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {t('settings.pwa.updateDesc')}
+      </p>
+      {status === 'available' ? (
+        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+          <Download className="h-4 w-4" />
+          <span>{t('settings.pwa.updateFound')}</span>
+        </div>
+      ) : status === 'up-to-date' ? (
+        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+          <Check className="h-4 w-4" />
+          <span>{t('settings.pwa.upToDate')}</span>
+        </div>
+      ) : (
+        <button
+          onClick={() => checkForUpdate()}
+          disabled={status === 'checking'}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+        >
+          {status === 'checking' ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCw className="h-4 w-4" />
+          )}
+          {status === 'checking' ? t('settings.pwa.checking') : t('settings.pwa.checkUpdate')}
+        </button>
+      )}
+    </Card>
+  );
+}
+
 /* -- Cache & Data Tab -- */
 function CacheTab({ stats, onResetAll }: {
   stats: { files: number; links: number };
@@ -1020,6 +1066,9 @@ function CacheTab({ stats, onResetAll }: {
 
       {/* PWA Install */}
       <PwaInstallCard />
+
+      {/* PWA Update */}
+      <PwaUpdateCard />
 
       {/* Danger zone — factory reset */}
       <Card className="border-destructive/40 overflow-hidden">

@@ -188,6 +188,12 @@ const en = {
   'settings.pwa.desc': 'Install Gleaner as a standalone app on your device for a full-screen, native-like experience with offline access.',
   'settings.pwa.install': 'Install to Home Screen',
   'settings.pwa.installed': 'App is installed',
+  'settings.pwa.update': 'App Update',
+  'settings.pwa.updateDesc': 'Check whether a newer version of Gleaner is available. If an update is found, the app will reload automatically.',
+  'settings.pwa.checkUpdate': 'Check for Updates',
+  'settings.pwa.checking': 'Checking...',
+  'settings.pwa.upToDate': 'Already up to date',
+  'settings.pwa.updateFound': 'Update found — reloading...',
 
   'settings.cache.danger': 'Factory Reset',
   'settings.cache.dangerDesc': 'Permanently erase everything and return to the onboarding screen. This cannot be undone.',

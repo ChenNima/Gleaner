@@ -4,13 +4,14 @@ import './index.css'
 import './i18n'
 import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
-import { initInstallPrompt } from './lib/pwa'
+import { initInstallPrompt, setSWRegistration } from './lib/pwa'
 import { initAnalytics } from './lib/analytics'
 
 registerSW({
   immediate: true,
   onRegisteredSW(_swUrl, registration) {
     if (registration) {
+      setSWRegistration(registration);
       // Check for SW updates every hour
       setInterval(() => { registration.update() }, 60 * 60 * 1000)
     }

@@ -188,6 +188,12 @@ const zh = {
   'settings.pwa.desc': '将 Gleaner 安装为独立应用，获得全屏、无浏览器 UI 干扰的原生体验，支持离线访问。',
   'settings.pwa.install': '安装到主屏幕',
   'settings.pwa.installed': '应用已安装',
+  'settings.pwa.update': '应用更新',
+  'settings.pwa.updateDesc': '检查是否有更新版本的 Gleaner 可用。如果发现更新，应用将自动重新加载。',
+  'settings.pwa.checkUpdate': '检查更新',
+  'settings.pwa.checking': '检查中...',
+  'settings.pwa.upToDate': '已是最新版本',
+  'settings.pwa.updateFound': '发现更新 — 正在重新加载...',
 
   'settings.cache.danger': '恢复出厂设置',
   'settings.cache.dangerDesc': '永久清除所有数据并返回引导页面。此操作不可撤销。',
