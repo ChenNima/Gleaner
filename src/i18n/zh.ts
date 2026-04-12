@@ -213,7 +213,17 @@ const zh = {
   'settings.ie.importedFile': '已从文件导入 {{count}} 个仓库',
   'settings.ie.importFailed': '导入失败：{{error}}',
 
-  // Onboarding
+  // Onboarding — Welcome
+  'onboard.welcome.title': '欢迎使用 Gleaner',
+  'onboard.welcome.subtitle': '将 GitHub 仓库变为 Obsidian 风格的知识库。支持双向链接、反向链接和知识图谱，纯浏览器运行，无需后端。',
+  'onboard.welcome.feature1': '基于 GitHub 的知识库',
+  'onboard.welcome.feature1Desc': '同步并浏览 Markdown 仓库，享受类 Obsidian 的阅读体验。',
+  'onboard.welcome.feature2': '双向链接与知识图谱',
+  'onboard.welcome.feature2Desc': '通过 [[双向链接]] 导航，探索反向链接，以可视化图谱呈现笔记间的关联。',
+  'onboard.welcome.feature3': '隐私安全 & 离线可用',
+  'onboard.welcome.feature3Desc': '纯前端应用——数据保存在浏览器中。安装为 PWA 即可离线使用。',
+
+  // Onboarding — Token
   'onboard.token.title': '连接 GitHub',
   'onboard.token.subtitle': '建议配置个人访问令牌以获得最佳体验。',
   'onboard.token.recommended': '建议所有用户配置',

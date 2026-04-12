@@ -213,7 +213,17 @@ const en = {
   'settings.ie.importedFile': 'Imported {{count}} repos from file',
   'settings.ie.importFailed': 'Import failed: {{error}}',
 
-  // Onboarding
+  // Onboarding — Welcome
+  'onboard.welcome.title': 'Welcome to Gleaner',
+  'onboard.welcome.subtitle': 'Browse your GitHub repositories like a knowledge base — with wikilinks, backlinks, and a knowledge graph. All in the browser, no backend needed.',
+  'onboard.welcome.feature1': 'GitHub-based Knowledge Base',
+  'onboard.welcome.feature1Desc': 'Sync and browse Markdown repositories with an Obsidian-like reading experience.',
+  'onboard.welcome.feature2': 'Wikilinks & Knowledge Graph',
+  'onboard.welcome.feature2Desc': 'Navigate through [[wikilinks]], explore backlinks, and visualize connections with an interactive knowledge graph.',
+  'onboard.welcome.feature3': 'Private & Offline',
+  'onboard.welcome.feature3Desc': 'Pure frontend app — your data stays in the browser. Install as a PWA for full offline access.',
+
+  // Onboarding — Token
   'onboard.token.title': 'Connect to GitHub',
   'onboard.token.subtitle': 'A personal access token is recommended for the best experience.',
   'onboard.token.recommended': 'Recommended for all users',

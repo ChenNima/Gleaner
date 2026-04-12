@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ShieldCheck, Lock, KeyRound, Rocket, FolderPlus, GitBranch,
   ArrowRight, ArrowLeft, Download, Plus, X, Check, Smartphone,
+  BookOpen, Link2,
 } from 'lucide-react';
 import { setPat } from '../lib/auth';
 import {
@@ -33,7 +34,7 @@ interface LocalRepo {
 export default function OnboardPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
   const [token, setToken] = useState('');
@@ -46,15 +47,19 @@ export default function OnboardPage() {
   const [githubConfigRepo, setGithubConfigRepo] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const handleStep1Next = async () => {
+  const handleWelcomeNext = () => {
+    setLanguage(lang);
+    setStep(2);
+  };
+
+  const handleTokenNext = async () => {
     if (token.trim()) {
       await setPat(token.trim());
     }
     if (proxyUrl.trim()) {
       setGithubProxy(proxyUrl.trim());
     }
-    setLanguage(lang);
-    setStep(2);
+    setStep(3);
   };
 
   const handleFinish = async () => {
@@ -138,17 +143,25 @@ export default function OnboardPage() {
             <div className={cn('h-2 w-2 rounded-full', step === 1 ? 'bg-primary' : 'bg-muted-foreground/30')} />
             <div className="h-0.5 w-8 rounded bg-muted-foreground/20" />
             <div className={cn('h-2 w-2 rounded-full', step === 2 ? 'bg-primary' : 'bg-muted-foreground/30')} />
+            <div className="h-0.5 w-8 rounded bg-muted-foreground/20" />
+            <div className={cn('h-2 w-2 rounded-full', step === 3 ? 'bg-primary' : 'bg-muted-foreground/30')} />
           </div>
 
           {step === 1 ? (
+            <Welcome
+              lang={lang}
+              setLang={setLang}
+              onNext={handleWelcomeNext}
+              t={t}
+            />
+          ) : step === 2 ? (
             <Step1
               token={token}
               setToken={setToken}
               proxyUrl={proxyUrl}
               setProxyUrl={setProxyUrl}
-              lang={lang}
-              setLang={setLang}
-              onNext={handleStep1Next}
+              onBack={() => setStep(1)}
+              onNext={handleTokenNext}
               t={t}
             />
           ) : (
@@ -164,7 +177,7 @@ export default function OnboardPage() {
               downloadSampleYaml={downloadSampleYaml}
               canFinish={!!canFinish}
               saving={saving}
-              onBack={() => setStep(1)}
+              onBack={() => setStep(2)}
               onFinish={handleFinish}
               t={t}
             />
@@ -175,13 +188,9 @@ export default function OnboardPage() {
   );
 }
 
-/* ─── Step 1: Token ─── */
+/* ─── Welcome: Introduction ─── */
 
-function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, t }: {
-  token: string;
-  setToken: (v: string) => void;
-  proxyUrl: string;
-  setProxyUrl: (v: string) => void;
+function Welcome({ lang, setLang, onNext, t }: {
   lang: 'en' | 'zh' | 'system';
   setLang: (v: 'en' | 'zh' | 'system') => void;
   onNext: () => void;
@@ -193,14 +202,21 @@ function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, 
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Hero with logo */}
-      <div className="text-center space-y-3">
-        <img src="/gleaner.png" alt="Gleaner" className="h-16 w-16 mx-auto" />
+      <div className="text-center space-y-4">
+        <img src="/gleaner.png" alt="Gleaner" className="h-20 w-20 mx-auto" />
         <div>
-          <h1 className="text-xl font-semibold text-foreground">{t('onboard.token.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('onboard.token.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('onboard.welcome.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{t('onboard.welcome.subtitle')}</p>
         </div>
+      </div>
+
+      {/* Feature highlights */}
+      <div className="rounded-lg border bg-card p-4 space-y-4">
+        <InfoRow icon={BookOpen} color="text-amber-600" title={t('onboard.welcome.feature1')} desc={t('onboard.welcome.feature1Desc')} />
+        <InfoRow icon={Link2} color="text-blue-600" title={t('onboard.welcome.feature2')} desc={t('onboard.welcome.feature2Desc')} />
+        <InfoRow icon={ShieldCheck} color="text-green-600" title={t('onboard.welcome.feature3')} desc={t('onboard.welcome.feature3Desc')} />
       </div>
 
       {/* PWA Install */}
@@ -228,6 +244,60 @@ function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, 
             <span>{t('onboard.pwa.installed')}</span>
           </div>
         ) : null}
+      </div>
+
+      {/* Language */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">{t('onboard.lang.label')}</label>
+        <div className="flex gap-2">
+          {(['system', 'en', 'zh'] as const).map((opt) => (
+            <button
+              key={opt}
+              onClick={() => { setLang(opt); setLanguage(opt); }}
+              className={cn(
+                'flex-1 px-3 py-2 text-sm border rounded-md transition-colors',
+                lang === opt
+                  ? 'border-primary bg-primary/5 text-foreground font-medium'
+                  : 'border-border text-muted-foreground hover:border-muted-foreground/30'
+              )}
+            >
+              {t(`onboard.lang.${opt}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Action */}
+      <div className="flex items-center justify-center">
+        <button
+          onClick={onNext}
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          {t('onboard.continue')}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Step 1: Token ─── */
+
+function Step1({ token, setToken, proxyUrl, setProxyUrl, onBack, onNext, t }: {
+  token: string;
+  setToken: (v: string) => void;
+  proxyUrl: string;
+  setProxyUrl: (v: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-xl font-semibold text-foreground">{t('onboard.token.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t('onboard.token.subtitle')}</p>
       </div>
 
       {/* Info cards */}
@@ -267,42 +337,30 @@ function Step1({ token, setToken, proxyUrl, setProxyUrl, lang, setLang, onNext, 
         </p>
       </div>
 
-      {/* Language */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">{t('onboard.lang.label')}</label>
-        <div className="flex gap-2">
-          {(['system', 'en', 'zh'] as const).map((opt) => (
-            <button
-              key={opt}
-              onClick={() => { setLang(opt); setLanguage(opt); }}
-              className={cn(
-                'flex-1 px-3 py-2 text-sm border rounded-md transition-colors',
-                lang === opt
-                  ? 'border-primary bg-primary/5 text-foreground font-medium'
-                  : 'border-border text-muted-foreground hover:border-muted-foreground/30'
-              )}
-            >
-              {t(`onboard.lang.${opt}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center justify-between">
         <button
-          onClick={onNext}
-          className="text-sm text-muted-foreground hover:text-foreground"
+          onClick={onBack}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          {t('onboard.skip')}
+          <ArrowLeft className="h-4 w-4" />
+          {t('onboard.back')}
         </button>
-        <button
-          onClick={onNext}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {t('onboard.continue')}
-          <ArrowRight className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onNext}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            {t('onboard.skip')}
+          </button>
+          <button
+            onClick={onNext}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {t('onboard.continue')}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
