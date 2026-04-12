@@ -71,6 +71,16 @@ src/
 - `erasableSyntaxOnly` is enabled — no parameter properties in constructors (use field declarations)
 - No `baseUrl`/`paths` in tsconfig — use relative imports only
 
+## Documentation
+
+User-facing docs live in a separate repo: `../Gleaner-Docs` (remote: `git@github.com:ChenNima/Gleaner-Docs.git`).
+
+- Every feature doc has both English (`.md`) and Chinese (`.zh.md`) versions
+- Each file starts with a language switcher: `[中文](./Foo.zh.md) | **English**`
+- When adding or updating features, update the corresponding docs in both languages
+- Docs use real `[[wikilink]]` syntax where appropriate (not just code blocks) so they also serve as integration tests
+- After editing, commit and `git push origin main` so Gleaner can sync the changes
+
 ## Auth
 
 - PAT (Personal Access Token) is optional — stored in IndexedDB
