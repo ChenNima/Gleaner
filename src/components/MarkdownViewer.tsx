@@ -21,14 +21,16 @@ import { MdLink } from './markdown/MdLink';
 import { RepoVideo } from './markdown/RepoVideo';
 import { FrontmatterCard } from './markdown/FrontmatterCard';
 import { extractFrontmatter } from '../lib/frontmatter';
+import { headingToSlug } from '../lib/wikilink-parser';
 
-const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+// Matches [[target#heading|alias]], all parts optional except the brackets
+const WIKILINK_REGEX = /\[\[([^\]|#]*?)(?:#([^\]|]*?))?(?:\|([^\]]+))?\]\]/g;
 
 interface MarkdownViewerProps {
   file: MdFile | null;
   loading?: boolean;
   resolvedLinks?: Map<string, boolean>;
-  onWikilinkClick?: (target: string) => void;
+  onWikilinkClick?: (target: string, heading?: string) => void;
   onInternalLinkClick?: (repoPath: string) => void;
   onFolderClick?: (repoPath: string) => void;
   repoFullName?: string;
@@ -47,11 +49,16 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
   });
 
   // Replace wikilinks in the safe string
-  safe = safe.replace(WIKILINK_REGEX, (_match, target: string, alias?: string) => {
-    const display = alias ?? target;
-    const encoded = encodeURIComponent(target.trim());
-    const isResolved = resolvedLinks?.get(target.trim().toLowerCase()) ?? false;
-    return `<a class="wikilink" data-wikilink="${encoded}" data-resolved="${isResolved}">${display}</a>`;
+  safe = safe.replace(WIKILINK_REGEX, (_match, rawTarget?: string, rawHeading?: string, alias?: string) => {
+    const target = (rawTarget ?? '').trim();
+    const heading = (rawHeading ?? '').trim();
+    // Display: alias > "target#heading" > "#heading" > target
+    const display = alias ?? (target && heading ? `${target}#${heading}` : heading ? `#${heading}` : target);
+    if (!target && !heading) return _match; // [[]] — leave as-is
+    const encodedTarget = encodeURIComponent(target);
+    const encodedHeading = encodeURIComponent(heading);
+    const isResolved = target ? (resolvedLinks?.get(target.toLowerCase()) ?? false) : true; // [[#heading]] is always "resolved" (same file)
+    return `<a class="wikilink" data-wikilink="${encodedTarget}" data-heading="${encodedHeading}" data-resolved="${isResolved}">${display}</a>`;
   });
 
   // Restore code blocks
@@ -69,7 +76,9 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
   const fileDir = file?.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
 
   const handleAnchorClick = useCallback((id: string) => {
-    const el = containerRef.current?.querySelector(`[id="${CSS.escape(id)}"]`)
+    const slug = headingToSlug(id);
+    const el = containerRef.current?.querySelector(`[id="${CSS.escape(slug)}"]`)
+      ?? containerRef.current?.querySelector(`[id="${CSS.escape(id)}"]`)
       ?? containerRef.current?.querySelector(`[id="${CSS.escape(id.toLowerCase())}"]`);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   }, []);

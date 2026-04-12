@@ -38,7 +38,7 @@ export async function hydrateStoreFromDB(): Promise<void> {
   }
 
   // Check if links need re-parsing (e.g. parser was updated)
-  const PARSER_VERSION = '2';
+  const PARSER_VERSION = '3';
   const allFiles = await db.files.toArray();
   const filesWithContent = allFiles.filter((f) => f.content !== null);
   const linkCount = await db.links.count();

@@ -124,7 +124,7 @@ button, [role="button"], label[class*="cursor-pointer"], a { cursor: pointer; }
   .prose {
     --tw-prose-body: hsl(var(--foreground)) !important;
     --tw-prose-headings: hsl(var(--foreground)) !important;
-    --tw-prose-links: hsl(var(--primary)) !important;
+    --tw-prose-links: hsl(var(--foreground)) !important;
     --tw-prose-bold: hsl(var(--foreground)) !important;
     --tw-prose-code: hsl(var(--foreground)) !important;
     --tw-prose-counters: hsl(var(--muted-foreground)) !important;
@@ -137,17 +137,15 @@ button, [role="button"], label[class*="cursor-pointer"], a { cursor: pointer; }
   }
 
   .wikilink {
-    color: hsl(var(--primary));
-    text-decoration: underline;
-    text-decoration-style: dotted;
+    text-decoration-style: dotted !important;
     cursor: pointer;
   }
   .wikilink:hover {
-    text-decoration-style: solid;
+    text-decoration-style: solid !important;
   }
   .wikilink[data-resolved="false"] {
-    color: hsl(var(--muted-foreground));
-    text-decoration-style: dashed;
+    color: hsl(var(--muted-foreground)) !important;
+    text-decoration-style: dashed !important;
   }
 
   /* Let highlight.js theme control code block appearance */

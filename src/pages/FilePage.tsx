@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, ChevronRightIcon } from 'lucide-react';
 import { DocumentThemePicker } from '../components/DocumentThemePicker';
 import { db } from '../db';
 import type { MdFile } from '../db';
 import { getFileContent } from '../lib/github';
-import { resolveWikilink, extractWikilinks } from '../lib/wikilink-parser';
+import { resolveWikilink, extractWikilinks, headingToSlug } from '../lib/wikilink-parser';
 import { useAppStore } from '../stores/app';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 
@@ -16,6 +16,7 @@ const scrollMemory = new Map<string, number>();
 export default function FilePage() {
   const { owner, name, '*': filePath } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const setCurrentFileId = useAppStore((s) => s.setCurrentFileId);
   const syncVersion = useAppStore((s) => s.syncVersion);
@@ -73,11 +74,12 @@ export default function FilePage() {
     return () => setCurrentFileId(null);
   }, [fileId, owner, name, filePath, syncVersion]);
 
-  const handleWikilinkClick = async (target: string) => {
+  const handleWikilinkClick = async (target: string, heading?: string) => {
     const resolved = await resolveWikilink(target, repoFullName);
     if (resolved) {
       const [rOwner, rRepo] = resolved.repoFullName.split('/');
-      navigate(`/repo/${rOwner}/${rRepo}/${resolved.path}`);
+      const targetPath = `/repo/${rOwner}/${rRepo}/${resolved.path}`;
+      navigate(heading ? `${targetPath}#${encodeURIComponent(heading)}` : targetPath);
     }
   };
 
@@ -125,17 +127,27 @@ export default function FilePage() {
     };
   }, [fileId]);
 
-  // Restore scroll position after content loads
+  // Restore scroll position after content loads, or scroll to heading hash
   useEffect(() => {
     if (loading || !fileId) return;
-    const saved = scrollMemory.get(fileId);
-    if (saved != null && scrollRef.current) {
-      // Wait a frame for content to render
+    const hash = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+    if (hash && scrollRef.current) {
+      // Heading anchor from wikilink — scroll to it
       requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo(0, saved);
+        const slug = headingToSlug(hash);
+        const el = scrollRef.current?.querySelector(`[id="${CSS.escape(slug)}"]`)
+          ?? scrollRef.current?.querySelector(`[id="${CSS.escape(hash)}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
       });
+    } else {
+      const saved = scrollMemory.get(fileId);
+      if (saved != null && scrollRef.current) {
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollTo(0, saved);
+        });
+      }
     }
-  }, [loading, fileId]);
+  }, [loading, fileId, location.hash]);
 
   // Build breadcrumb segments: [repo label, ...path parts]
   const pathParts = filePath?.split('/') ?? [];

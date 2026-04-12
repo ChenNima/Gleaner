@@ -2,21 +2,54 @@ import { db, getActiveRepoNames } from '../db';
 import type { WikiLink, MdFile } from '../db';
 import { extractFrontmatter } from './frontmatter';
 
-const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+/**
+ * Convert a heading string to a slug matching rehype-slug's output.
+ */
+export function headingToSlug(heading: string): string {
+  return heading.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+}
+
+// Captures: group1=target (file part, may be empty), group2=heading, group3=alias
+const WIKILINK_REGEX = /\[\[([^\]|#]*?)(?:#([^\]|]*?))?(?:\|([^\]]+))?\]\]/g;
 const MD_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g;
 const EXTERNAL_LINK_REGEX = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 
+export interface ParsedWikilink {
+  target: string;   // file part only (no #heading), already trimmed
+  heading: string;   // heading part (without #), empty string if none
+  alias: string;     // display text, empty string if none
+}
+
 /**
- * Extract wikilink targets from markdown content
+ * Extract wikilink targets from markdown content.
+ * Returns only the file-name portion (no #heading) for backward compatibility.
  */
 export function extractWikilinks(content: string): string[] {
-  const targets: string[] = [];
+  return extractParsedWikilinks(content).map((w) => w.target).filter(Boolean);
+}
+
+/**
+ * Extract structured wikilink data from markdown content.
+ */
+export function extractParsedWikilinks(content: string): ParsedWikilink[] {
+  const results: ParsedWikilink[] = [];
   let match;
   const re = new RegExp(WIKILINK_REGEX.source, WIKILINK_REGEX.flags);
   while ((match = re.exec(content)) !== null) {
-    targets.push(match[1].trim());
+    results.push({
+      target: (match[1] ?? '').trim(),
+      heading: (match[2] ?? '').trim(),
+      alias: (match[3] ?? '').trim(),
+    });
   }
-  return targets;
+  return results;
+}
+
+/**
+ * Strip .md suffix (case-insensitive) from a wikilink target.
+ */
+function stripMdExtension(name: string): string {
+  return name.replace(/\.md$/i, '');
 }
 
 /**
@@ -112,10 +145,11 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
 
   const links: WikiLink[] = [];
 
-  // Extract wikilinks
-  const wikiTargets = extractWikilinks(file.content);
-  for (const targetTitle of wikiTargets) {
-    links.push({ sourceFileId: file.id, targetTitle, targetFileId: null });
+  // Extract wikilinks — store only the file-name portion as targetTitle
+  const parsed = extractParsedWikilinks(file.content);
+  for (const w of parsed) {
+    if (!w.target) continue; // [[#heading]] only — no file target to store
+    links.push({ sourceFileId: file.id, targetTitle: w.target, targetFileId: null });
   }
 
   // Extract standard markdown links and resolve to file IDs immediately
@@ -159,23 +193,93 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
 }
 
 /**
+ * Pre-built index for O(1) wikilink resolution.
+ */
+interface FileIndex {
+  fileIdSet: Set<string>;
+  /** lowercase filename (without .md) → files */
+  nameMap: Map<string, MdFile[]>;
+  /** lowercase frontmatter title → files */
+  titleMap: Map<string, MdFile[]>;
+  /** lowercase path suffix (without .md) → files, e.g. "getting-started/quick start" */
+  pathSuffixMap: Map<string, MdFile[]>;
+}
+
+function buildFileIndex(allFiles: MdFile[]): FileIndex {
+  const fileIdSet = new Set(allFiles.map((f) => f.id));
+  const nameMap = new Map<string, MdFile[]>();
+  const titleMap = new Map<string, MdFile[]>();
+  const pathSuffixMap = new Map<string, MdFile[]>();
+
+  for (const file of allFiles) {
+    // Index by filename
+    const fileName = stripMdExtension(file.path.split('/').pop() ?? '').toLowerCase();
+    pushToMap(nameMap, fileName, file);
+
+    // Index by frontmatter title
+    if (file.title) {
+      pushToMap(titleMap, file.title.toLowerCase(), file);
+    }
+
+    // Index by all path suffixes for path-based matching
+    const normalized = stripMdExtension(file.path).toLowerCase();
+    const parts = normalized.split('/');
+    // Full path and every suffix with at least one directory component
+    for (let i = 0; i < parts.length; i++) {
+      pushToMap(pathSuffixMap, parts.slice(i).join('/'), file);
+    }
+  }
+
+  return { fileIdSet, nameMap, titleMap, pathSuffixMap };
+}
+
+function pushToMap(map: Map<string, MdFile[]>, key: string, file: MdFile): void {
+  const arr = map.get(key);
+  if (arr) arr.push(file);
+  else map.set(key, [file]);
+}
+
+/**
+ * Look up a wikilink target using a pre-built index. O(1) per lookup.
+ */
+function findMatchingFileIndexed(
+  index: FileIndex,
+  rawTarget: string,
+  sourceRepo: string | null,
+): MdFile | null {
+  const target = stripMdExtension(rawTarget).toLowerCase();
+  if (!target) return null;
+
+  let candidates: MdFile[];
+
+  if (target.includes('/')) {
+    candidates = index.pathSuffixMap.get(target) ?? [];
+  } else {
+    // Merge name + title matches, dedupe
+    const byName = index.nameMap.get(target) ?? [];
+    const byTitle = index.titleMap.get(target) ?? [];
+    if (byTitle.length === 0) {
+      candidates = byName;
+    } else if (byName.length === 0) {
+      candidates = byTitle;
+    } else {
+      const seen = new Set<string>();
+      candidates = [];
+      for (const f of byName) { seen.add(f.id); candidates.push(f); }
+      for (const f of byTitle) { if (!seen.has(f.id)) candidates.push(f); }
+    }
+  }
+
+  return pickBestCandidate(candidates, sourceRepo);
+}
+
+/**
  * Resolve all unresolved wikilinks globally.
- * Strategy:
- * 1. Exact title match (case-insensitive)
- * 2. Cross-repo global search
- * 3. If multiple matches, prefer same repo
+ * Builds an index first for O(N+M) total instead of O(N×M).
  */
 export async function resolveAllLinks(): Promise<void> {
   const allFiles = await db.files.toArray();
-  const fileIdSet = new Set(allFiles.map((f) => f.id));
-  const titleMap = new Map<string, MdFile[]>();
-
-  for (const file of allFiles) {
-    const title = fileTitle(file).toLowerCase();
-    const existing = titleMap.get(title) ?? [];
-    existing.push(file);
-    titleMap.set(title, existing);
-  }
+  const index = buildFileIndex(allFiles);
 
   const allLinks = await db.links.toArray();
 
@@ -185,26 +289,16 @@ export async function resolveAllLinks(): Promise<void> {
 
     // If targetFileId is already set (from standard markdown links), verify it exists
     if (link.targetFileId) {
-      if (!fileIdSet.has(link.targetFileId)) {
+      if (!index.fileIdSet.has(link.targetFileId)) {
         await db.links.update(link.id!, { targetFileId: null });
       }
       continue;
     }
 
-    // Resolve by title (for wikilinks)
-    const target = link.targetTitle.toLowerCase();
-    const candidates = titleMap.get(target);
-
-    if (!candidates || candidates.length === 0) {
-      continue;
-    }
-
-    // Prefer same repo
     const sourceRepo = link.sourceFileId.split('::')[0];
-    const sameRepo = candidates.find((f) => f.repoFullName === sourceRepo);
-    const resolved = sameRepo ?? candidates[0];
+    const resolved = findMatchingFileIndexed(index, link.targetTitle, sourceRepo);
 
-    if (link.targetFileId !== resolved.id) {
+    if (resolved && link.targetFileId !== resolved.id) {
       await db.links.update(link.id!, { targetFileId: resolved.id });
     }
   }
@@ -267,33 +361,63 @@ export async function getOutgoingLinks(fileId: string): Promise<{ target: MdFile
 }
 
 /**
- * Resolve a single wikilink target to a file ID
+ * Resolve a single wikilink target to a file ID.
+ * Supports: strip .md, path-suffix matching, filename + frontmatter title dual match.
  */
 export async function resolveWikilink(
   targetTitle: string,
   sourceRepoFullName?: string
 ): Promise<MdFile | null> {
   const allFiles = await db.files.toArray();
-  const target = targetTitle.toLowerCase();
-
-  const matches = allFiles.filter(
-    (f) => fileTitle(f).toLowerCase() === target
-  );
-
-  if (matches.length === 0) return null;
-  if (matches.length === 1) return matches[0];
-
-  // Prefer same repo
-  if (sourceRepoFullName) {
-    const sameRepo = matches.find((f) => f.repoFullName === sourceRepoFullName);
-    if (sameRepo) return sameRepo;
-  }
-
-  return matches[0];
+  return findMatchingFile(allFiles, targetTitle, sourceRepoFullName ?? null);
 }
 
-function fileTitle(file: MdFile): string {
-  if (file.title) return file.title;
-  const name = file.path.split('/').pop() ?? file.path;
-  return name.replace(/\.md$/i, '');
+/**
+ * Among candidates: prefer same repo, then shortest path.
+ */
+function pickBestCandidate(candidates: MdFile[], sourceRepo: string | null): MdFile | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  if (sourceRepo) {
+    const sameRepo = candidates.filter((f) => f.repoFullName === sourceRepo);
+    if (sameRepo.length === 1) return sameRepo[0];
+    if (sameRepo.length > 1) {
+      return sameRepo.sort((a, b) => a.path.length - b.path.length)[0];
+    }
+  }
+
+  return candidates.sort((a, b) => a.path.length - b.path.length)[0];
+}
+
+/**
+ * Core matching logic for resolveWikilink (single lookup, no pre-built index).
+ * Uses linear scan — fine for one-off calls, use findMatchingFileIndexed for batch.
+ */
+function findMatchingFile(
+  allFiles: MdFile[],
+  rawTarget: string,
+  sourceRepo: string | null,
+): MdFile | null {
+  const target = stripMdExtension(rawTarget).toLowerCase();
+  if (!target) return null;
+
+  let candidates: MdFile[];
+
+  if (target.includes('/')) {
+    const suffix = '/' + target;
+    candidates = allFiles.filter((f) => {
+      const normalized = stripMdExtension(f.path).toLowerCase();
+      return normalized === target || normalized.endsWith(suffix);
+    });
+  } else {
+    candidates = allFiles.filter((f) => {
+      const fileName = stripMdExtension(f.path.split('/').pop() ?? '').toLowerCase();
+      if (fileName === target) return true;
+      if (f.title && f.title.toLowerCase() === target) return true;
+      return false;
+    });
+  }
+
+  return pickBestCandidate(candidates, sourceRepo);
 }
