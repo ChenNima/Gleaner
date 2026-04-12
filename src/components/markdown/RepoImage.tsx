@@ -76,7 +76,7 @@ export function RepoImage({ src, alt, repoFullName, fileDir, ...rest }: RepoImag
   }, [src, repoFullName, fileDir, isRelative]);
 
   return (
-    <Lightbox>
+    <Lightbox src={resolvedSrc}>
       <img src={resolvedSrc} alt={alt ?? ''} {...rest} />
     </Lightbox>
   );

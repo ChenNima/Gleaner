@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useId } from 'react';
+import { useEffect, useRef, useState, useCallback, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme';
@@ -26,6 +26,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pngUrl, setPngUrl] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +35,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
       setLoading(true);
       setError(null);
       setSvg(null);
+      setPngUrl('');
 
       try {
         const mermaid = (await loadMermaid()).default;
@@ -78,6 +80,30 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
     return () => { cancelled = true; };
   }, [code, theme, containerId]);
 
+  // Convert rendered Mermaid SVG DOM to PNG for lightbox (YARL Zoom needs <img>).
+  // Mermaid SVGs contain <foreignObject> which browsers block in <img> tags,
+  // so we rasterize via html-to-image which reads the rendered DOM directly.
+  const generatePng = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || pngUrl) return;
+
+    import('html-to-image').then(({ toPng }) => {
+      const bgColor = theme === 'dark' ? '#18181b' : '#ffffff';
+      toPng(el, { backgroundColor: bgColor, pixelRatio: 2 })
+        .then((dataUrl) => setPngUrl(dataUrl))
+        .catch(() => { /* fallback: lightbox opens with empty src */ });
+    });
+  }, [theme, pngUrl]);
+
+  // Generate PNG once after SVG renders into the DOM
+  useEffect(() => {
+    if (svg && containerRef.current) {
+      // Small delay to ensure Mermaid SVG is fully painted
+      const timer = setTimeout(generatePng, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [svg, generatePng]);
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-4 text-muted-foreground">
@@ -101,7 +127,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
 
   // mermaid.render() produces sanitized SVG — safe to insert
   return (
-    <Lightbox>
+    <Lightbox src={pngUrl}>
       <div
         ref={containerRef}
         className="mermaid-diagram flex justify-center py-2"
