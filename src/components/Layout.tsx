@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Network, Settings, Search, X, MoreVertical, Palette, Moon, Check, ChevronRight, FileText } from 'lucide-react';
@@ -15,6 +15,7 @@ import { OfflineBar } from './OfflineBar';
 import { markdownThemes } from '../lib/markdown-themes';
 
 const MOBILE_BREAKPOINT = 768;
+const SIDEBAR_ANIM_MS = 200;
 
 function useIsMobile() {
   const check = () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT;
@@ -28,10 +29,11 @@ function useIsMobile() {
   return ref;
 }
 
-function ResizeHandle({ side, widthRef, setWidth, min, max }: {
+function ResizeHandle({ side, widthRef, setWidth, sidebarRef, min, max }: {
   side: 'left' | 'right';
   widthRef: React.RefObject<number>;
   setWidth: (w: number) => void;
+  sidebarRef: React.RefObject<HTMLElement | null>;
   min: number;
   max: number;
 }) {
@@ -39,12 +41,13 @@ function ResizeHandle({ side, widthRef, setWidth, min, max }: {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = widthRef.current;
+    let cur = startWidth;
 
     const onMouseMove = (ev: MouseEvent) => {
       const diff = ev.clientX - startX;
       const delta = side === 'left' ? diff : -diff;
-      const newW = Math.max(min, Math.min(max, startWidth + delta));
-      setWidth(newW);
+      cur = Math.max(min, Math.min(max, startWidth + delta));
+      if (sidebarRef.current) sidebarRef.current.style.width = `${cur}px`;
     };
 
     const onMouseUp = () => {
@@ -52,13 +55,14 @@ function ResizeHandle({ side, widthRef, setWidth, min, max }: {
       document.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      setWidth(cur);
     };
 
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  }, [side, widthRef, setWidth, min, max]);
+  }, [side, widthRef, setWidth, sidebarRef, min, max]);
 
   return (
     <div
@@ -142,6 +146,57 @@ export function Layout({
   const rightWidthRef = useRef(rightWidth);
   rightWidthRef.current = rightWidth;
 
+  // --- Desktop sidebar open/close animation (imperative DOM, no CSS class changes) ---
+  const leftSidebarRef = useRef<HTMLElement>(null);
+  const rightSidebarRef = useRef<HTMLElement>(null);
+  const pendingOpenRef = useRef<'left' | 'right' | null>(null);
+
+  useLayoutEffect(() => {
+    const side = pendingOpenRef.current;
+    if (!side) return;
+    pendingOpenRef.current = null;
+    const el = side === 'left' ? leftSidebarRef.current : rightSidebarRef.current;
+    const w = side === 'left' ? leftWidthRef.current : rightWidthRef.current;
+    if (!el || isMobileRef.current) return;
+    el.style.width = '0px';
+    el.style.overflow = 'hidden';
+    void el.offsetWidth;
+    el.style.transition = `width ${SIDEBAR_ANIM_MS}ms ease-in-out`;
+    el.style.width = `${w}px`;
+    let done = false;
+    const cleanup = () => { if (done) return; done = true; el.style.transition = ''; el.style.overflow = ''; };
+    el.addEventListener('transitionend', cleanup, { once: true });
+    setTimeout(cleanup, SIDEBAR_ANIM_MS + 50);
+  }, [leftOpen, rightOpen]);
+
+  const closeSidebarDesktop = useCallback((el: HTMLElement, toggle: () => void) => {
+    el.style.overflow = 'hidden';
+    el.style.transition = `width ${SIDEBAR_ANIM_MS}ms ease-in-out`;
+    el.style.width = '0px';
+    let done = false;
+    const finish = () => { if (done) return; done = true; el.style.transition = ''; el.style.overflow = ''; toggle(); };
+    el.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, SIDEBAR_ANIM_MS + 50);
+  }, []);
+
+  const handleToggleLeft = useCallback(() => {
+    if (leftOpen && !isMobileRef.current && leftSidebarRef.current) {
+      closeSidebarDesktop(leftSidebarRef.current, toggleLeft);
+    } else {
+      if (!leftOpen && !isMobileRef.current) pendingOpenRef.current = 'left';
+      toggleLeft();
+    }
+  }, [leftOpen, toggleLeft, closeSidebarDesktop]);
+
+  const handleToggleRight = useCallback(() => {
+    if (rightOpen && !isMobileRef.current && rightSidebarRef.current) {
+      closeSidebarDesktop(rightSidebarRef.current, toggleRight);
+    } else {
+      if (!rightOpen && !isMobileRef.current) pendingOpenRef.current = 'right';
+      toggleRight();
+    }
+  }, [rightOpen, toggleRight, closeSidebarDesktop]);
+
   return (
     <div className="flex flex-col h-dvh">
       <OfflineBar />
@@ -149,7 +204,7 @@ export function Layout({
       <header className="flex items-center justify-between h-12 md:h-11 px-3 md:px-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-2 md:gap-2">
           <button
-            onClick={toggleLeft}
+            onClick={handleToggleLeft}
             className="p-2.5 md:p-1.5 rounded hover:bg-accent text-muted-foreground"
             title={leftOpen ? t('nav.hideSidebar') : t('nav.showSidebar')}
           >
@@ -213,7 +268,7 @@ export function Layout({
             <ThemeToggle />
           </div>
           <button
-            onClick={toggleRight}
+            onClick={handleToggleRight}
             className="hidden md:flex p-1.5 rounded hover:bg-accent text-muted-foreground"
             title={rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
           >
@@ -314,7 +369,7 @@ export function Layout({
 
           {/* Mobile backlinks toggle — rightmost button */}
           <button
-            onClick={toggleRight}
+            onClick={handleToggleRight}
             className="md:hidden p-2.5 rounded hover:bg-accent text-muted-foreground"
             title={rightOpen ? t('nav.hideBacklinks') : t('nav.showBacklinks')}
           >
@@ -336,14 +391,15 @@ export function Layout({
             sidebarAnimReady && 'transition-opacity duration-300 ease-in-out',
             leftOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           )}
-          onClick={toggleLeft}
+          onClick={handleToggleLeft}
         />
         {/* Left sidebar */}
         <aside
+          ref={leftSidebarRef}
           className={cn(
             'shrink-0 border-r overflow-y-auto bg-sidebar-background text-sidebar-foreground z-40',
-            // Mobile: fixed overlay with slide animation
-            'fixed top-0 bottom-0 left-0 w-full',
+            // Mobile: fixed overlay with slide animation, leave gap for tap-to-close
+            'fixed top-0 bottom-0 left-0 w-[calc(100%-3rem)]',
             sidebarAnimReady && 'transition-transform duration-300 ease-in-out',
             leftOpen ? 'translate-x-0' : '-translate-x-full',
             // Desktop: inline relative, instant
@@ -356,14 +412,14 @@ export function Layout({
           {/* Close button on mobile */}
           <div className="flex items-center justify-between px-3 py-2 border-b md:hidden">
             <span className="text-sm font-semibold text-muted-foreground">{t('nav.files')}</span>
-            <button onClick={toggleLeft} className="p-2 rounded hover:bg-accent">
+            <button onClick={handleToggleLeft} className="p-2 rounded hover:bg-accent">
               <X className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
           <FileTree />
         </aside>
         {leftOpen && (
-          <ResizeHandle side="left" widthRef={leftWidthRef} setWidth={setLeftWidth} min={160} max={400} />
+          <ResizeHandle side="left" widthRef={leftWidthRef} setWidth={setLeftWidth} sidebarRef={leftSidebarRef} min={160} max={400} />
         )}
 
         {/* Main content */}
@@ -371,7 +427,7 @@ export function Layout({
 
         {/* Right sidebar */}
         {rightOpen && (
-          <ResizeHandle side="right" widthRef={rightWidthRef} setWidth={setRightWidth} min={200} max={600} />
+          <ResizeHandle side="right" widthRef={rightWidthRef} setWidth={setRightWidth} sidebarRef={rightSidebarRef} min={200} max={600} />
         )}
         {/* Right sidebar backdrop (mobile, always rendered for animation) */}
         <div
@@ -380,14 +436,15 @@ export function Layout({
             sidebarAnimReady && 'transition-opacity duration-300 ease-in-out',
             rightOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           )}
-          onClick={toggleRight}
+          onClick={handleToggleRight}
         />
         {/* Right sidebar */}
         <aside
+          ref={rightSidebarRef}
           className={cn(
             'shrink-0 border-l flex flex-col bg-sidebar-background text-sidebar-foreground z-40',
-            // Mobile: fixed overlay with slide animation
-            'fixed top-0 bottom-0 right-0 w-full',
+            // Mobile: fixed overlay with slide animation, leave gap for tap-to-close
+            'fixed top-0 bottom-0 right-0 w-[calc(100%-3rem)]',
             sidebarAnimReady && 'transition-transform duration-300 ease-in-out',
             rightOpen ? 'translate-x-0' : 'translate-x-full',
             // Desktop: inline relative, instant
@@ -399,7 +456,7 @@ export function Layout({
         >
           {/* Close button on mobile */}
           <div className="flex items-center justify-end px-3 py-2 border-b md:hidden">
-            <button onClick={toggleRight} className="p-2 rounded hover:bg-accent">
+            <button onClick={handleToggleRight} className="p-2 rounded hover:bg-accent">
               <X className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
