@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme';
+import { Lightbox } from './Lightbox';
 
 interface MermaidBlockProps {
   code: string;
@@ -100,10 +101,12 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
 
   // mermaid.render() produces sanitized SVG — safe to insert
   return (
-    <div
-      ref={containerRef}
-      className="mermaid-diagram flex justify-center py-2"
-      dangerouslySetInnerHTML={{ __html: svg! }}
-    />
+    <Lightbox>
+      <div
+        ref={containerRef}
+        className="mermaid-diagram flex justify-center py-2"
+        dangerouslySetInnerHTML={{ __html: svg! }}
+      />
+    </Lightbox>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAuthHeaders } from '../../lib/auth';
 import { getGithubProxy } from '../../lib/github';
+import { Lightbox } from './Lightbox';
 
 // Module-level cache: cacheKey → blob URL
 const imageCache = new Map<string, string>();
@@ -74,5 +75,9 @@ export function RepoImage({ src, alt, repoFullName, fileDir, ...rest }: RepoImag
     return () => { cancelled = true; };
   }, [src, repoFullName, fileDir, isRelative]);
 
-  return <img src={resolvedSrc} alt={alt ?? ''} {...rest} />;
+  return (
+    <Lightbox>
+      <img src={resolvedSrc} alt={alt ?? ''} {...rest} />
+    </Lightbox>
+  );
 }
