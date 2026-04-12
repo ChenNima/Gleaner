@@ -7,8 +7,9 @@ interface MdLinkProps {
   className?: string;
   children?: ReactNode;
   'data-wikilink'?: string;
+  'data-heading'?: string;
   'data-resolved'?: string;
-  onWikilinkClick?: (target: string) => void;
+  onWikilinkClick?: (target: string, heading?: string) => void;
   onInternalLinkClick?: (repoPath: string) => void;
   onFolderClick?: (repoPath: string) => void;
   onAnchorClick?: (id: string) => void;
@@ -64,6 +65,7 @@ export function MdLink({
   className,
   children,
   'data-wikilink': dataWikilink,
+  'data-heading': dataHeading,
   'data-resolved': dataResolved,
   onWikilinkClick,
   onInternalLinkClick,
@@ -72,19 +74,27 @@ export function MdLink({
   fileDir,
   ...rest
 }: MdLinkProps) {
-  // Wikilink
-  if (dataWikilink != null) {
-    const target = decodeURIComponent(dataWikilink);
+  // Wikilink (includes [[target]], [[target#heading]], [[#heading]])
+  if (dataWikilink != null || dataHeading != null) {
+    const target = dataWikilink ? decodeURIComponent(dataWikilink) : '';
+    const heading = dataHeading ? decodeURIComponent(dataHeading) : '';
+    const tipText = target && heading ? `${target}#${heading}` : heading ? `#${heading}` : target;
     const handleClick = (e: MouseEvent) => {
       e.preventDefault();
-      onWikilinkClick?.(target);
+      if (!target && heading) {
+        // [[#heading]] — same-file anchor jump
+        onAnchorClick?.(heading);
+      } else {
+        onWikilinkClick?.(target, heading || undefined);
+      }
     };
     return (
-      <LinkTooltip icon={<FileText className="h-3 w-3 shrink-0" />} tip={target}>
+      <LinkTooltip icon={<FileText className="h-3 w-3 shrink-0" />} tip={tipText}>
         <a
           href="#"
           className={className ?? 'wikilink'}
           data-wikilink={dataWikilink}
+          data-heading={dataHeading}
           data-resolved={dataResolved}
           onClick={handleClick}
           {...rest}

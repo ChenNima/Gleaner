@@ -2,21 +2,47 @@ import { db, getActiveRepoNames } from '../db';
 import type { WikiLink, MdFile } from '../db';
 import { extractFrontmatter } from './frontmatter';
 
-const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+// Captures: group1=target (file part, may be empty), group2=heading, group3=alias
+const WIKILINK_REGEX = /\[\[([^\]|#]*?)(?:#([^\]|]*?))?(?:\|([^\]]+))?\]\]/g;
 const MD_LINK_REGEX = /\[([^\]]+)\]\(([^)]+\.md(?:#[^)]*)?)\)/g;
 const EXTERNAL_LINK_REGEX = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 
+export interface ParsedWikilink {
+  target: string;   // file part only (no #heading), already trimmed
+  heading: string;   // heading part (without #), empty string if none
+  alias: string;     // display text, empty string if none
+}
+
 /**
- * Extract wikilink targets from markdown content
+ * Extract wikilink targets from markdown content.
+ * Returns only the file-name portion (no #heading) for backward compatibility.
  */
 export function extractWikilinks(content: string): string[] {
-  const targets: string[] = [];
+  return extractParsedWikilinks(content).map((w) => w.target).filter(Boolean);
+}
+
+/**
+ * Extract structured wikilink data from markdown content.
+ */
+export function extractParsedWikilinks(content: string): ParsedWikilink[] {
+  const results: ParsedWikilink[] = [];
   let match;
   const re = new RegExp(WIKILINK_REGEX.source, WIKILINK_REGEX.flags);
   while ((match = re.exec(content)) !== null) {
-    targets.push(match[1].trim());
+    results.push({
+      target: (match[1] ?? '').trim(),
+      heading: (match[2] ?? '').trim(),
+      alias: (match[3] ?? '').trim(),
+    });
   }
-  return targets;
+  return results;
+}
+
+/**
+ * Strip .md suffix (case-insensitive) from a wikilink target.
+ */
+function stripMdExtension(name: string): string {
+  return name.replace(/\.md$/i, '');
 }
 
 /**
@@ -112,10 +138,11 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
 
   const links: WikiLink[] = [];
 
-  // Extract wikilinks
-  const wikiTargets = extractWikilinks(file.content);
-  for (const targetTitle of wikiTargets) {
-    links.push({ sourceFileId: file.id, targetTitle, targetFileId: null });
+  // Extract wikilinks — store only the file-name portion as targetTitle
+  const parsed = extractParsedWikilinks(file.content);
+  for (const w of parsed) {
+    if (!w.target) continue; // [[#heading]] only — no file target to store
+    links.push({ sourceFileId: file.id, targetTitle: w.target, targetFileId: null });
   }
 
   // Extract standard markdown links and resolve to file IDs immediately
@@ -160,22 +187,14 @@ export async function parseAndStoreLinks(file: MdFile): Promise<void> {
 
 /**
  * Resolve all unresolved wikilinks globally.
- * Strategy:
- * 1. Exact title match (case-insensitive)
- * 2. Cross-repo global search
- * 3. If multiple matches, prefer same repo
+ * Strategy matches resolveWikilink:
+ * 1. Strip .md from target, then match by filename and frontmatter title
+ * 2. Support path-suffix matching when target contains /
+ * 3. Prefer same repo, then shortest path
  */
 export async function resolveAllLinks(): Promise<void> {
   const allFiles = await db.files.toArray();
   const fileIdSet = new Set(allFiles.map((f) => f.id));
-  const titleMap = new Map<string, MdFile[]>();
-
-  for (const file of allFiles) {
-    const title = fileTitle(file).toLowerCase();
-    const existing = titleMap.get(title) ?? [];
-    existing.push(file);
-    titleMap.set(title, existing);
-  }
 
   const allLinks = await db.links.toArray();
 
@@ -191,20 +210,10 @@ export async function resolveAllLinks(): Promise<void> {
       continue;
     }
 
-    // Resolve by title (for wikilinks)
-    const target = link.targetTitle.toLowerCase();
-    const candidates = titleMap.get(target);
-
-    if (!candidates || candidates.length === 0) {
-      continue;
-    }
-
-    // Prefer same repo
     const sourceRepo = link.sourceFileId.split('::')[0];
-    const sameRepo = candidates.find((f) => f.repoFullName === sourceRepo);
-    const resolved = sameRepo ?? candidates[0];
+    const resolved = findMatchingFile(allFiles, link.targetTitle, sourceRepo);
 
-    if (link.targetFileId !== resolved.id) {
+    if (resolved && link.targetFileId !== resolved.id) {
       await db.links.update(link.id!, { targetFileId: resolved.id });
     }
   }
@@ -267,33 +276,65 @@ export async function getOutgoingLinks(fileId: string): Promise<{ target: MdFile
 }
 
 /**
- * Resolve a single wikilink target to a file ID
+ * Resolve a single wikilink target to a file ID.
+ * Supports: strip .md, path-suffix matching, filename + frontmatter title dual match.
  */
 export async function resolveWikilink(
   targetTitle: string,
   sourceRepoFullName?: string
 ): Promise<MdFile | null> {
   const allFiles = await db.files.toArray();
-  const target = targetTitle.toLowerCase();
-
-  const matches = allFiles.filter(
-    (f) => fileTitle(f).toLowerCase() === target
-  );
-
-  if (matches.length === 0) return null;
-  if (matches.length === 1) return matches[0];
-
-  // Prefer same repo
-  if (sourceRepoFullName) {
-    const sameRepo = matches.find((f) => f.repoFullName === sourceRepoFullName);
-    if (sameRepo) return sameRepo;
-  }
-
-  return matches[0];
+  return findMatchingFile(allFiles, targetTitle, sourceRepoFullName ?? null);
 }
 
-function fileTitle(file: MdFile): string {
-  if (file.title) return file.title;
-  const name = file.path.split('/').pop() ?? file.path;
-  return name.replace(/\.md$/i, '');
+/**
+ * Core matching logic shared by resolveWikilink and resolveAllLinks.
+ *
+ * 1. Strip .md from target
+ * 2. If target contains '/', do path-suffix match; otherwise match filename + frontmatter title
+ * 3. Among candidates: prefer same repo, then shortest path
+ */
+function findMatchingFile(
+  allFiles: MdFile[],
+  rawTarget: string,
+  sourceRepo: string | null,
+): MdFile | null {
+  const target = stripMdExtension(rawTarget).toLowerCase();
+  if (!target) return null;
+
+  const hasPath = target.includes('/');
+  let candidates: MdFile[];
+
+  if (hasPath) {
+    // Path-suffix match: file.path (without .md) must end with target
+    const suffix = '/' + target;
+    candidates = allFiles.filter((f) => {
+      const normalized = stripMdExtension(f.path).toLowerCase();
+      return normalized === target || normalized.endsWith(suffix);
+    });
+  } else {
+    // Match by filename (without .md) OR frontmatter title
+    candidates = allFiles.filter((f) => {
+      const fileName = stripMdExtension(f.path.split('/').pop() ?? '').toLowerCase();
+      if (fileName === target) return true;
+      if (f.title && f.title.toLowerCase() === target) return true;
+      return false;
+    });
+  }
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Prefer same repo
+  if (sourceRepo) {
+    const sameRepo = candidates.filter((f) => f.repoFullName === sourceRepo);
+    if (sameRepo.length === 1) return sameRepo[0];
+    if (sameRepo.length > 1) {
+      // Among same-repo candidates, pick shortest path
+      return sameRepo.sort((a, b) => a.path.length - b.path.length)[0];
+    }
+  }
+
+  // Fallback: shortest path
+  return candidates.sort((a, b) => a.path.length - b.path.length)[0];
 }
