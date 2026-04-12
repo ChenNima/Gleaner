@@ -54,6 +54,8 @@ const en = {
   'md.copyCode': 'Copy code',
   'md.mermaidLoading': 'Loading diagram...',
   'md.mermaidError': 'Diagram render failed',
+  'md.mathLoading': 'Loading formula...',
+  'md.mathError': 'Formula render failed',
 
   // File tree
   'tree.noRepos': 'No repositories configured',

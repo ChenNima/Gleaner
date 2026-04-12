@@ -5,6 +5,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
@@ -19,6 +20,7 @@ import { ResponsiveTable } from './markdown/ResponsiveTable';
 import { RepoImage } from './markdown/RepoImage';
 import { MdLink } from './markdown/MdLink';
 import { RepoVideo } from './markdown/RepoVideo';
+import { InlineMath } from './markdown/InlineMath';
 import { FrontmatterCard } from './markdown/FrontmatterCard';
 import { extractFrontmatter } from '../lib/frontmatter';
 import { headingToSlug } from '../lib/wikilink-parser';
@@ -41,8 +43,9 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
   const codeSlots: string[] = [];
   const placeholder = (i: number) => `\x00CODE${i}\x00`;
 
-  // Replace fenced code blocks first, then inline code spans
-  let safe = content.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+  // Replace fenced code blocks, math expressions, then inline code spans
+  // Order: fenced code > block math ($$) > inline code > inline math ($)
+  let safe = content.replace(/```[\s\S]*?```|\$\$[\s\S]*?\$\$|`[^`\n]+`|\$(?!\$)[^$\n]+\$/g, (m) => {
     const idx = codeSlots.length;
     codeSlots.push(m);
     return placeholder(idx);
@@ -61,9 +64,9 @@ function preprocessWikilinks(content: string, resolvedLinks?: Map<string, boolea
     return `<a class="wikilink" data-wikilink="${encodedTarget}" data-heading="${encodedHeading}" data-resolved="${isResolved}">${display}</a>`;
   });
 
-  // Restore code blocks
+  // Restore code blocks (use function replacement to avoid $` $' $& special patterns)
   for (let i = 0; i < codeSlots.length; i++) {
-    safe = safe.replace(placeholder(i), codeSlots[i]);
+    safe = safe.replace(placeholder(i), () => codeSlots[i]);
   }
   return safe;
 }
@@ -102,6 +105,7 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
         .use(remarkParse)
         .use(remarkFrontmatter)
         .use(remarkGfm)
+        .use(remarkMath)
         .use(remarkRehype, { allowDangerousHtml: true })
         .use(rehypeRaw)
         .use(rehypeSlug)
@@ -112,6 +116,17 @@ export function MarkdownViewer({ file, loading, resolvedLinks, onWikilinkClick, 
           jsxs: jsxs as unknown as (type: string, props: Record<string, unknown>) => JSX.Element,
           components: {
             pre: (props: Record<string, unknown>) => <CodeBlock {...props} />,
+            code: (props: Record<string, unknown>) => {
+              const className = String(props.className ?? '');
+              if (className.includes('math-inline')) {
+                const ch = props.children;
+                const text = typeof ch === 'string' ? ch
+                  : Array.isArray(ch) ? ch.map((c) => (typeof c === 'string' ? c : '')).join('')
+                  : '';
+                return <InlineMath code={text} />;
+              }
+              return <code {...props} />;
+            },
             table: (props: Record<string, unknown>) => <ResponsiveTable {...props} />,
             img: (props: Record<string, unknown>) => (
               <RepoImage

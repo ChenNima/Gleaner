@@ -54,6 +54,8 @@ const zh = {
   'md.copyCode': '复制代码',
   'md.mermaidLoading': '加载图表中...',
   'md.mermaidError': '图表渲染失败',
+  'md.mathLoading': '加载公式中...',
+  'md.mathError': '公式渲染失败',
 
   // File tree
   'tree.noRepos': '未配置仓库',

@@ -2,6 +2,7 @@ import { useState, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check } from 'lucide-react';
 import { MermaidBlock } from './MermaidBlock';
+import { MathBlock } from './MathBlock';
 
 interface CodeBlockProps {
   children?: ReactNode;
@@ -37,6 +38,12 @@ export function CodeBlock({ children, className, ...rest }: CodeBlockProps) {
   if (language === 'mermaid') {
     const code = extractCodeText(children);
     if (code) return <MermaidBlock code={code.trim()} />;
+  }
+
+  // Intercept math code blocks (from remark-math $$...$$ blocks) — render as formula
+  if (language === 'math') {
+    const code = extractCodeText(children);
+    if (code) return <MathBlock code={code.trim()} />;
   }
 
   const handleCopy = async () => {
