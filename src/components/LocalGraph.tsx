@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -8,8 +8,8 @@ import { useAppStore } from '../stores/app';
 import {
   type GraphNode, type GraphLink, type RenderContext,
   CANVAS_BG_DARK, CANVAS_BG_LIGHT,
-  nodeDisplayName, nodeToRoute, dedupeLinks,
-  renderNode, paintPointerArea,
+  nodeDisplayName, nodeToRoute, dedupeLinks, buildNeighborMap,
+  renderNode, paintPointerArea, linkColor, linkWidth,
 } from '../lib/graph-utils';
 
 interface LocalGraphProps {
@@ -29,6 +29,8 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
   const mouseGraphPos = useRef<{ x: number; y: number } | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [depth, setDepth] = useState(1);
+  const [showExternal, setShowExternal] = useState(false);
+  const [hoverNode, setHoverNode] = useState<string | null>(null);
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
   const syncVersion = useAppStore((s) => s.syncVersion);
@@ -147,7 +149,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
     })();
   }, [fileId, depth, syncVersion]);
 
-  // Configure asymmetric forces based on container aspect ratio
+  // Configure asymmetric forces to fill tall narrow containers vertically
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg || !dimensions || data.nodes.length === 0) return;
@@ -168,21 +170,36 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
       return force;
     };
 
+    // Remove the default symmetric center force — our X/Y forces handle centering
+    fg.d3Force('center', null);
+
     if (aspect < 0.8) {
-      // Tall narrow container: compress X, allow Y spread
-      const xStrength = Math.min(0.08 / aspect, 0.3);
-      const yStrength = Math.max(0.08 * aspect, 0.01);
-      fg.d3Force('x', makeAxisForce('x', xStrength));
-      fg.d3Force('y', makeAxisForce('y', yStrength));
+      // Tall narrow: strong X compression, very weak Y centering → vertical ellipse
+      fg.d3Force('x', makeAxisForce('x', 0.3));
+      fg.d3Force('y', makeAxisForce('y', 0.005));
+      // Stronger repulsion to push nodes apart vertically
+      (fg.d3Force('charge') as { strength: (n: number) => void } | undefined)?.strength(-50);
     } else {
-      // Roughly square or wide: remove asymmetric forces
-      fg.d3Force('x', null);
-      fg.d3Force('y', null);
+      fg.d3Force('x', makeAxisForce('x', 0.05));
+      fg.d3Force('y', makeAxisForce('y', 0.05));
+      (fg.d3Force('charge') as { strength: (n: number) => void } | undefined)?.strength(-30);
     }
 
-    (fg.d3Force('charge') as { strength: (n: number) => void } | undefined)?.strength(-30);
     fg.d3ReheatSimulation();
   }, [dimensions, data]);
+
+  // Filter external nodes when toggle is off
+  const displayData = useMemo(() => {
+    if (showExternal) return data;
+    const extIds = new Set(data.nodes.filter((n) => n.isExternal).map((n) => n.id));
+    if (extIds.size === 0) return data;
+    return {
+      nodes: data.nodes.filter((n) => !n.isExternal),
+      links: data.links.filter((l) => !extIds.has(l.source) && !extIds.has(l.target)),
+    };
+  }, [data, showExternal]);
+
+  const neighbors = useMemo(() => buildNeighborMap(displayData.links), [displayData]);
 
   const handleNodeClick = useCallback(
     (node: GraphNode) => {
@@ -200,13 +217,13 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
 
   let overlay: string | null = null;
   if (!fileId) overlay = t('localGraph.noFile');
-  else if (data.nodes.length === 0) overlay = t('localGraph.noConnections');
+  else if (displayData.nodes.length === 0) overlay = t('localGraph.noConnections');
 
   const rc: RenderContext = {
     isDark,
     mouseGraphPos: mouseGraphPos.current,
-    hoverNode: null,
-    neighbors: new Map(),
+    hoverNode,
+    neighbors,
     repoColors: new Map(),
     enableGravity: true,
     compact: true,
@@ -219,15 +236,15 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
           {overlay}
         </div>
       )}
-      {/* Depth control */}
+      {/* Controls — larger touch targets on mobile */}
       {fileId && (
-        <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1.5 bg-background/80 backdrop-blur rounded px-1.5 py-0.5 text-[10px] text-muted-foreground">
+        <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-2 md:gap-1.5 bg-background/80 backdrop-blur rounded px-2 py-1 md:px-1.5 md:py-0.5 text-xs md:text-[10px] text-muted-foreground">
           <span>{t('localGraph.depth')}</span>
           {[1, 2, 3].map((d) => (
             <button
               key={d}
               onClick={() => setDepth(d)}
-              className={`w-4 h-4 rounded text-center leading-4 transition-colors ${
+              className={`w-7 h-7 md:w-4 md:h-4 rounded text-center leading-7 md:leading-4 transition-colors ${
                 depth === d
                   ? 'bg-primary text-primary-foreground font-medium'
                   : 'hover:bg-muted'
@@ -236,12 +253,23 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
               {d}
             </button>
           ))}
+          <span className="border-l pl-2 ml-0.5">
+            <label className="flex items-center gap-1.5 md:gap-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showExternal}
+                onChange={(e) => setShowExternal(e.target.checked)}
+                className="w-4 h-4 md:w-3 md:h-3 rounded"
+              />
+              {t('graph.externalLinks')}
+            </label>
+          </span>
         </div>
       )}
       {!overlay && dimensions && (
         <ForceGraph2D
           ref={fgRef as React.RefObject<never>}
-          graphData={data as unknown as { nodes: object[]; links: object[] }}
+          graphData={displayData as unknown as { nodes: object[]; links: object[] }}
           width={dimensions.width}
           height={dimensions.height}
           nodeCanvasObject={(node, ctx) =>
@@ -252,8 +280,9 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
           }
           nodeLabel={(node) => (node as unknown as GraphNode).name}
           onNodeClick={(node) => handleNodeClick(node as unknown as GraphNode)}
-          linkColor={() => isDark ? 'rgba(148,163,184,0.25)' : 'rgba(100,116,139,0.3)'}
-          linkWidth={0.8}
+          onNodeHover={(node: unknown) => setHoverNode((node as GraphNode | null)?.id ?? null)}
+          linkColor={(link: unknown) => linkColor(link as GraphLink, { ...rc, mouseGraphPos: mouseGraphPos.current })}
+          linkWidth={(link: unknown) => linkWidth(link as GraphLink, hoverNode)}
           backgroundColor="transparent"
           cooldownTicks={60}
           d3AlphaDecay={0.05}

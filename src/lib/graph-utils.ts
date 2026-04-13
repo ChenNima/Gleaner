@@ -139,13 +139,13 @@ export function renderNode(
       ?? (isCurrent ? (rc.isDark ? '#38bdf8' : '#0ea5e9') : (rc.isDark ? '#64748b' : '#94a3b8'));
 
   const compact = rc.compact ?? false;
-  const nodeR = compact ? 1.5 : 2;
+  const nodeR = compact ? 0.8 : 1.5;
   const baseFont = compact ? 1.2 : 1.4;
   const gravityR = compact ? 50 : GRAVITY_RADIUS;
   const maxS = compact ? 2 : MAX_SCALE;
 
-  // Highlight logic
-  const lit = !rc.hoverNode || isHover || (rc.neighbors.get(rc.hoverNode)?.has(node.id) ?? false);
+  // Highlight logic — isCurrent (center node in local graph) is never dimmed
+  const lit = !rc.hoverNode || isCurrent || isHover || (rc.neighbors.get(rc.hoverNode)?.has(node.id) ?? false);
   const dimmed = rc.hoverNode && !lit;
 
   // Gravity lens scale
@@ -160,9 +160,7 @@ export function renderNode(
     }
   }
 
-  // Scale radius by degree in full graph (compact/sidebar has degree=0)
-  const degreeBoost = compact ? 0 : Math.sqrt(node.degree) * 0.4;
-  const r = ((isCurrent ? nodeR + 1 : nodeR) + degreeBoost) * scale;
+  const r = (isCurrent ? nodeR + 1 : nodeR) * scale;
 
   // Glow
   if (isHover || isCurrent) {
@@ -249,9 +247,8 @@ export function paintPointerArea(
       s = 1 + (maxS - 1) * t * t;
     }
   }
-  const degreeBoost = compact ? 0 : Math.sqrt(node.degree ?? 0) * 0.4;
   ctx.beginPath();
-  ctx.arc(node.x, node.y, (nodeR + degreeBoost + 3) * s, 0, 2 * Math.PI, false);
+  ctx.arc(node.x, node.y, (nodeR + 3) * s, 0, 2 * Math.PI, false);
   ctx.fillStyle = color;
   ctx.fill();
 }
