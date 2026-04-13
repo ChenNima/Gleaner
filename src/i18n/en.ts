@@ -80,6 +80,7 @@ const en = {
   // Local graph
   'localGraph.noFile': 'No file selected',
   'localGraph.noConnections': 'No connections',
+  'localGraph.depth': 'Depth',
 
   // Sync status
   'sync.syncing': 'Syncing {{cached}}/{{total}}',
@@ -105,6 +106,7 @@ const en = {
   'graph.noFiles': 'No files synced yet.',
   'graph.goToSettings': 'Go to Settings',
   'graph.externalLinks': 'External links',
+  'graph.arrows': 'Arrows',
 
   // Settings page
   'settings.title': 'Settings',

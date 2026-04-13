@@ -45,6 +45,7 @@ export default function GraphPage() {
   const isDark = theme === 'dark';
 
   const [showExternalLinks, setShowExternalLinks] = useState(false);
+  const [showArrows, setShowArrows] = useState(false);
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
 
   // Build groups for color assignment, then filter by visibility
@@ -241,6 +242,15 @@ export default function GraphPage() {
               />
               <span className="text-muted-foreground">{t('graph.externalLinks')}</span>
             </label>
+            <label className="flex items-center gap-1.5 px-1 py-0.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showArrows}
+                onChange={(e) => setShowArrows(e.target.checked)}
+                className="w-3 h-3 rounded"
+              />
+              <span className="text-muted-foreground">{t('graph.arrows')}</span>
+            </label>
             {groups.length > 0 && (
               <>
                 <div className="border-t mt-1 pt-1">
@@ -297,6 +307,8 @@ export default function GraphPage() {
             onNodeHover={(node: PositionedNode | null) => setHoverNode(node?.id ?? null)}
             linkColor={(link: RuntimeLink) => linkColor(link, { ...rc, mouseGraphPos: mouseGraphPos.current })}
             linkWidth={(link: RuntimeLink) => linkWidth(link, hoverNode)}
+            linkDirectionalArrowLength={showArrows ? 4 : 0}
+            linkDirectionalArrowRelPos={1}
             linkDirectionalParticles={0}
             backgroundColor="transparent"
             d3AlphaDecay={0.02}

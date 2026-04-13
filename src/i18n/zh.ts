@@ -80,6 +80,7 @@ const zh = {
   // Local graph
   'localGraph.noFile': '未选择文件',
   'localGraph.noConnections': '无连接',
+  'localGraph.depth': '深度',
 
   // Sync status
   'sync.syncing': '同步中 {{cached}}/{{total}}',
@@ -105,6 +106,7 @@ const zh = {
   'graph.noFiles': '尚未同步任何文件。',
   'graph.goToSettings': '前往设置',
   'graph.externalLinks': '外部链接',
+  'graph.arrows': '箭头方向',
 
   // Settings page
   'settings.title': '设置',

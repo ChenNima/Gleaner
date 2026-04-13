@@ -28,6 +28,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseGraphPos = useRef<{ x: number; y: number } | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [depth, setDepth] = useState(1);
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
   const syncVersion = useAppStore((s) => s.syncVersion);
@@ -66,50 +67,64 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
     return () => { el.removeEventListener('mousemove', onMouseMove); el.removeEventListener('mouseleave', onMouseLeave); };
   }, []);
 
-  // Load local graph data — refreshes on file change or sync/profile switch
+  // Load local graph data — refreshes on file change, depth change, or sync/profile switch
   useEffect(() => {
     if (!fileId) { setData({ nodes: [], links: [] }); return; }
 
     (async () => {
       const activeRepos = await getActiveRepoNames();
-      const outgoing = await db.links.where('sourceFileId').equals(fileId).toArray();
-      const incoming = await db.links.where('targetFileId').equals(fileId).toArray();
 
-      const neighborIds = new Set<string>();
-      neighborIds.add(fileId);
+      // BFS to collect nodes up to `depth` hops from the current file
+      const visitedFileIds = new Set<string>();
+      visitedFileIds.add(fileId);
       const graphLinks: GraphLink[] = [];
-
       const externalNodeMap = new Map<string, GraphNode>();
-      for (const link of outgoing) {
-        if (link.isExternal && link.targetUrl) {
-          const extId = `external::${link.targetUrl}`;
-          if (!externalNodeMap.has(extId)) {
-            externalNodeMap.set(extId, {
-              id: extId, name: link.targetTitle, repoFullName: '',
-              degree: 0, isExternal: true, url: link.targetUrl,
-            });
+
+      let frontier = [fileId];
+      for (let d = 0; d < depth && frontier.length > 0; d++) {
+        const nextFrontier: string[] = [];
+
+        for (const currentId of frontier) {
+          const outgoing = await db.links.where('sourceFileId').equals(currentId).toArray();
+          const incoming = await db.links.where('targetFileId').equals(currentId).toArray();
+
+          for (const link of outgoing) {
+            if (link.isExternal && link.targetUrl) {
+              const extId = `external::${link.targetUrl}`;
+              if (!externalNodeMap.has(extId)) {
+                externalNodeMap.set(extId, {
+                  id: extId, name: link.targetTitle, repoFullName: '',
+                  degree: 0, isExternal: true, url: link.targetUrl,
+                });
+              }
+              graphLinks.push({ source: currentId, target: extId });
+            } else if (link.targetFileId) {
+              const targetRepo = link.targetFileId.split('::')[0];
+              if (activeRepos.has(targetRepo)) {
+                graphLinks.push({ source: currentId, target: link.targetFileId });
+                if (!visitedFileIds.has(link.targetFileId)) {
+                  visitedFileIds.add(link.targetFileId);
+                  nextFrontier.push(link.targetFileId);
+                }
+              }
+            }
           }
-          graphLinks.push({ source: fileId, target: extId });
-        } else if (link.targetFileId) {
-          // Only include if target belongs to active profile's repos
-          const targetRepo = link.targetFileId.split('::')[0];
-          if (activeRepos.has(targetRepo)) {
-            neighborIds.add(link.targetFileId);
-            graphLinks.push({ source: fileId, target: link.targetFileId });
+          for (const link of incoming) {
+            const sourceRepo = link.sourceFileId.split('::')[0];
+            if (activeRepos.has(sourceRepo)) {
+              graphLinks.push({ source: link.sourceFileId, target: currentId });
+              if (!visitedFileIds.has(link.sourceFileId)) {
+                visitedFileIds.add(link.sourceFileId);
+                nextFrontier.push(link.sourceFileId);
+              }
+            }
           }
         }
-      }
-      for (const link of incoming) {
-        // Only include if source belongs to active profile's repos
-        const sourceRepo = link.sourceFileId.split('::')[0];
-        if (activeRepos.has(sourceRepo)) {
-          neighborIds.add(link.sourceFileId);
-          graphLinks.push({ source: link.sourceFileId, target: fileId });
-        }
+        frontier = nextFrontier;
       }
 
       const nodes: GraphNode[] = [...externalNodeMap.values()];
-      for (const id of neighborIds) {
+      for (const id of visitedFileIds) {
         const file = await db.files.get(id);
         if (file) {
           nodes.push({
@@ -130,7 +145,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
 
       setData({ nodes, links: safeLinks });
     })();
-  }, [fileId, syncVersion]);
+  }, [fileId, depth, syncVersion]);
 
   // Configure asymmetric forces based on container aspect ratio
   useEffect(() => {
@@ -202,6 +217,25 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
       {overlay && (
         <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
           {overlay}
+        </div>
+      )}
+      {/* Depth control */}
+      {fileId && (
+        <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1.5 bg-background/80 backdrop-blur rounded px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <span>{t('localGraph.depth')}</span>
+          {[1, 2, 3].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDepth(d)}
+              className={`w-4 h-4 rounded text-center leading-4 transition-colors ${
+                depth === d
+                  ? 'bg-primary text-primary-foreground font-medium'
+                  : 'hover:bg-muted'
+              }`}
+            >
+              {d}
+            </button>
+          ))}
         </div>
       )}
       {!overlay && dimensions && (

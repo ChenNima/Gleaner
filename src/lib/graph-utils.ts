@@ -160,7 +160,9 @@ export function renderNode(
     }
   }
 
-  const r = (isCurrent ? nodeR + 1 : nodeR) * scale;
+  // Scale radius by degree in full graph (compact/sidebar has degree=0)
+  const degreeBoost = compact ? 0 : Math.sqrt(node.degree) * 0.4;
+  const r = ((isCurrent ? nodeR + 1 : nodeR) + degreeBoost) * scale;
 
   // Glow
   if (isHover || isCurrent) {
@@ -194,8 +196,15 @@ export function renderNode(
   ctx.fillStyle = fillColor;
   ctx.fill();
 
-  // Label — always short filename only, full name via tooltip
-  if (!dimmed) {
+  // Label — fade out when zoomed out in full graph to prevent dense overlap
+  // In compact mode (sidebar), always show labels (few nodes)
+  const zoom = ctx.getTransform().a;
+  const FADE_MIN = 0.4;  // fully hidden below this zoom
+  const FADE_MAX = 0.8;  // fully visible above this zoom
+  const zoomAlpha = compact ? 1 : Math.min(1, Math.max(0, (zoom - FADE_MIN) / (FADE_MAX - FADE_MIN)));
+  const showLabel = !dimmed && (isHover || isCurrent || zoomAlpha > 0);
+
+  if (showLabel) {
     let label = node.name;
     const parenIdx = label.indexOf(' (');
     if (parenIdx > 0) label = label.substring(0, parenIdx);
@@ -206,12 +215,14 @@ export function renderNode(
     ctx.font = `${bold ? 'bold ' : ''}${fontSize}px -apple-system, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
+    // Hovered/current nodes always fully opaque; others fade with zoom
+    const labelAlpha = (isHover || isCurrent) ? 1 : zoomAlpha;
     if (isHover || isCurrent) {
       ctx.fillStyle = rc.isDark ? '#f8fafc' : '#0f172a';
     } else if (scale > 1.1) {
-      ctx.fillStyle = rc.isDark ? '#e2e8f0' : '#1e293b';
+      ctx.fillStyle = rc.isDark ? `rgba(226,232,240,${labelAlpha})` : `rgba(30,41,59,${labelAlpha})`;
     } else {
-      ctx.fillStyle = rc.isDark ? '#94a3b8' : '#475569';
+      ctx.fillStyle = rc.isDark ? `rgba(148,163,184,${labelAlpha})` : `rgba(71,85,105,${labelAlpha})`;
     }
     ctx.fillText(label, x, y + r + 1.5);
   }
@@ -238,8 +249,9 @@ export function paintPointerArea(
       s = 1 + (maxS - 1) * t * t;
     }
   }
+  const degreeBoost = compact ? 0 : Math.sqrt(node.degree ?? 0) * 0.4;
   ctx.beginPath();
-  ctx.arc(node.x, node.y, (nodeR + 3) * s, 0, 2 * Math.PI, false);
+  ctx.arc(node.x, node.y, (nodeR + degreeBoost + 3) * s, 0, 2 * Math.PI, false);
   ctx.fillStyle = color;
   ctx.fill();
 }
