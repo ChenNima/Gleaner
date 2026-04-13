@@ -1,4 +1,4 @@
-import { db, getActiveRepoNames } from '../db';
+import { db, getActiveRepoNames, getActiveFiles } from '../db';
 import type { WikiLink, MdFile } from '../db';
 import { extractFrontmatter } from './frontmatter';
 
@@ -278,14 +278,19 @@ function findMatchingFileIndexed(
  * Builds an index first for O(N+M) total instead of O(N×M).
  */
 export async function resolveAllLinks(): Promise<void> {
-  const allFiles = await db.files.toArray();
-  const index = buildFileIndex(allFiles);
+  const activeFiles = await getActiveFiles();
+  const index = buildFileIndex(activeFiles);
 
+  const activeRepos = await getActiveRepoNames();
   const allLinks = await db.links.toArray();
 
   for (const link of allLinks) {
     // Skip external links — they don't resolve to files
     if (link.isExternal) continue;
+
+    // Only resolve links whose source belongs to an active repo
+    const sourceRepo = link.sourceFileId.split('::')[0];
+    if (!activeRepos.has(sourceRepo)) continue;
 
     // If targetFileId is already set (from standard markdown links), verify it exists
     if (link.targetFileId) {
@@ -295,7 +300,6 @@ export async function resolveAllLinks(): Promise<void> {
       continue;
     }
 
-    const sourceRepo = link.sourceFileId.split('::')[0];
     const resolved = findMatchingFileIndexed(index, link.targetTitle, sourceRepo);
 
     if (resolved && link.targetFileId !== resolved.id) {

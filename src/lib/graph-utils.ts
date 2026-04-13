@@ -139,8 +139,8 @@ export function renderNode(
       ?? (isCurrent ? (rc.isDark ? '#38bdf8' : '#0ea5e9') : (rc.isDark ? '#64748b' : '#94a3b8'));
 
   const compact = rc.compact ?? false;
-  const nodeR = compact ? 1.2 : 2;
-  const baseFont = compact ? 0.8 : 1.4;
+  const nodeR = compact ? 1.5 : 2;
+  const baseFont = compact ? 1.2 : 1.4;
   const gravityR = compact ? 50 : GRAVITY_RADIUS;
   const maxS = compact ? 2 : MAX_SCALE;
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import ForceGraph2D from 'react-force-graph-2d';
 import { db, getActiveRepoNames } from '../db';
 import { useThemeStore } from '../stores/theme';
+import { useAppStore } from '../stores/app';
 import {
   type GraphNode, type GraphLink, type RenderContext,
   CANVAS_BG_DARK, CANVAS_BG_LIGHT,
@@ -18,12 +19,18 @@ interface LocalGraphProps {
 export function LocalGraph({ fileId }: LocalGraphProps) {
   const navigate = useNavigate();
   const [data, setData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
-  const fgRef = useRef<{ screen2GraphCoords?: (x: number, y: number) => { x: number; y: number }; zoomToFit: (ms: number, padding: number) => void } | null>(null);
+  const fgRef = useRef<{
+    screen2GraphCoords?: (x: number, y: number) => { x: number; y: number };
+    zoomToFit: (ms: number, padding: number) => void;
+    d3Force: (name: string, force?: unknown) => unknown;
+    d3ReheatSimulation: () => void;
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseGraphPos = useRef<{ x: number; y: number } | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
+  const syncVersion = useAppStore((s) => s.syncVersion);
 
   // Container sizing
   useEffect(() => {
@@ -59,7 +66,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
     return () => { el.removeEventListener('mousemove', onMouseMove); el.removeEventListener('mouseleave', onMouseLeave); };
   }, []);
 
-  // Load local graph data
+  // Load local graph data — refreshes on file change or sync/profile switch
   useEffect(() => {
     if (!fileId) { setData({ nodes: [], links: [] }); return; }
 
@@ -72,14 +79,16 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
       neighborIds.add(fileId);
       const graphLinks: GraphLink[] = [];
 
-      const externalNodes: GraphNode[] = [];
+      const externalNodeMap = new Map<string, GraphNode>();
       for (const link of outgoing) {
         if (link.isExternal && link.targetUrl) {
           const extId = `external::${link.targetUrl}`;
-          externalNodes.push({
-            id: extId, name: link.targetTitle, repoFullName: '',
-            degree: 0, isExternal: true, url: link.targetUrl,
-          });
+          if (!externalNodeMap.has(extId)) {
+            externalNodeMap.set(extId, {
+              id: extId, name: link.targetTitle, repoFullName: '',
+              degree: 0, isExternal: true, url: link.targetUrl,
+            });
+          }
           graphLinks.push({ source: fileId, target: extId });
         } else if (link.targetFileId) {
           // Only include if target belongs to active profile's repos
@@ -99,7 +108,7 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
         }
       }
 
-      const nodes: GraphNode[] = [...externalNodes];
+      const nodes: GraphNode[] = [...externalNodeMap.values()];
       for (const id of neighborIds) {
         const file = await db.files.get(id);
         if (file) {
@@ -113,9 +122,52 @@ export function LocalGraph({ fileId }: LocalGraphProps) {
         }
       }
 
-      setData({ nodes, links: dedupeLinks(graphLinks) });
+      // Filter out links referencing non-existent nodes (prevents ghost nodes in ForceGraph2D)
+      const nodeIds = new Set(nodes.map((n) => n.id));
+      const safeLinks = dedupeLinks(graphLinks).filter(
+        (l) => nodeIds.has(l.source) && nodeIds.has(l.target)
+      );
+
+      setData({ nodes, links: safeLinks });
     })();
-  }, [fileId]);
+  }, [fileId, syncVersion]);
+
+  // Configure asymmetric forces based on container aspect ratio
+  useEffect(() => {
+    const fg = fgRef.current;
+    if (!fg || !dimensions || data.nodes.length === 0) return;
+
+    const { width, height } = dimensions;
+    const aspect = width / height; // < 1 for tall narrow containers
+
+    type SimNode = Record<string, number>;
+    const makeAxisForce = (axis: 'x' | 'y', strength: number) => {
+      const vel = axis === 'x' ? 'vx' : 'vy';
+      let nodes: SimNode[] = [];
+      const force = (alpha: number) => {
+        for (const node of nodes) {
+          node[vel] += (0 - (node[axis] ?? 0)) * strength * alpha;
+        }
+      };
+      force.initialize = (n: SimNode[]) => { nodes = n; };
+      return force;
+    };
+
+    if (aspect < 0.8) {
+      // Tall narrow container: compress X, allow Y spread
+      const xStrength = Math.min(0.08 / aspect, 0.3);
+      const yStrength = Math.max(0.08 * aspect, 0.01);
+      fg.d3Force('x', makeAxisForce('x', xStrength));
+      fg.d3Force('y', makeAxisForce('y', yStrength));
+    } else {
+      // Roughly square or wide: remove asymmetric forces
+      fg.d3Force('x', null);
+      fg.d3Force('y', null);
+    }
+
+    (fg.d3Force('charge') as { strength: (n: number) => void } | undefined)?.strength(-30);
+    fg.d3ReheatSimulation();
+  }, [dimensions, data]);
 
   const handleNodeClick = useCallback(
     (node: GraphNode) => {
