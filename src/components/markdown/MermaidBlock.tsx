@@ -89,7 +89,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
 
     import('html-to-image').then(({ toPng }) => {
       const bgColor = theme === 'dark' ? '#18181b' : '#ffffff';
-      toPng(el, { backgroundColor: bgColor, pixelRatio: 2 })
+      toPng(el, { backgroundColor: bgColor, pixelRatio: 3 })
         .then((dataUrl) => setPngUrl(dataUrl))
         .catch(() => { /* fallback: lightbox opens with empty src */ });
     });

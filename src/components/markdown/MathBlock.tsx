@@ -65,7 +65,7 @@ export function MathBlock({ code }: MathBlockProps) {
   // MathJax tex2svg produces sanitized SVG — safe to insert
   return (
     <div
-      className="math-display flex justify-center py-2 text-foreground"
+      className="math-display flex justify-center py-2 text-foreground overflow-x-auto"
       dangerouslySetInnerHTML={{ __html: svg! }}
     />
   );

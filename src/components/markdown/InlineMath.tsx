@@ -55,7 +55,7 @@ export function InlineMath({ code }: InlineMathProps) {
   // MathJax tex2svg produces sanitized SVG — safe to insert
   return (
     <span
-      className="math-inline inline-flex items-baseline text-foreground"
+      className="math-inline inline-flex items-baseline text-foreground max-w-full overflow-x-auto"
       dangerouslySetInnerHTML={{ __html: svg! }}
     />
   );
