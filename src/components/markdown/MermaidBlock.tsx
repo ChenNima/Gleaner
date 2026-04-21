@@ -80,16 +80,32 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
     return () => { cancelled = true; };
   }, [code, theme, containerId]);
 
-  // Convert rendered Mermaid SVG DOM to PNG for lightbox (YARL Zoom needs <img>).
-  // Mermaid SVGs contain <foreignObject> which browsers block in <img> tags,
-  // so we rasterize via html-to-image which reads the rendered DOM directly.
+  // Rasterize Mermaid SVG DOM to PNG for lightbox; pixelRatio derived from
+  // SVG intrinsic size vs displayed size so large diagrams stay sharp.
   const generatePng = useCallback(() => {
     const el = containerRef.current;
     if (!el || pngUrl) return;
 
+    const svgEl = el.querySelector('svg');
+    let pixelRatio = window.devicePixelRatio || 2;
+
+    if (svgEl) {
+      const viewBox = svgEl.viewBox?.baseVal;
+      const intrinsicWidth =
+        (viewBox && viewBox.width > 0 ? viewBox.width : 0) ||
+        parseFloat(svgEl.style.maxWidth) ||
+        parseFloat(svgEl.getAttribute('width') || '0');
+      const displayedWidth = el.offsetWidth;
+      if (intrinsicWidth > 0 && displayedWidth > 0) {
+        pixelRatio = Math.max(pixelRatio, (intrinsicWidth / displayedWidth) * 1.5);
+      }
+    }
+
+    pixelRatio = Math.min(pixelRatio, 8);
+
     import('html-to-image').then(({ toPng }) => {
       const bgColor = theme === 'dark' ? '#18181b' : '#ffffff';
-      toPng(el, { backgroundColor: bgColor, pixelRatio: 3 })
+      toPng(el, { backgroundColor: bgColor, pixelRatio })
         .then((dataUrl) => setPngUrl(dataUrl))
         .catch(() => { /* fallback: lightbox opens with empty src */ });
     });
