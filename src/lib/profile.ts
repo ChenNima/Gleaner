@@ -95,6 +95,7 @@ export async function getReposFromProfile(profile: Profile): Promise<Repo[]> {
     fullName: rc.url,
     label: rc.label,
     treeSha: null,
+    ref: null,
     syncStatus: 'idle' as const,
     syncError: null,
     totalFiles: 0,
@@ -188,6 +189,7 @@ export async function switchProfile(id: string): Promise<void> {
     fullName: rc.url,
     label: rc.label,
     treeSha: null,
+    ref: null,
     syncStatus: 'idle' as const,
     syncError: null,
     totalFiles: 0,
@@ -205,6 +207,7 @@ export async function switchProfile(id: string): Promise<void> {
       return {
         ...r,
         treeSha: prev.treeSha,
+        ref: prev.ref ?? null,
         totalFiles: prev.totalFiles,
         cachedFiles: prev.cachedFiles,
         lastSyncAt: prev.lastSyncAt,

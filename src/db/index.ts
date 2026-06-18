@@ -9,6 +9,7 @@ export interface Repo {
   fullName: string;
   label: string;
   treeSha: string | null;
+  ref: string | null; // commit SHA the content was synced from; used to fetch file content on the correct branch/commit
   syncStatus: 'idle' | 'syncing' | 'done' | 'error';
   syncError: string | null;
   totalFiles: number;

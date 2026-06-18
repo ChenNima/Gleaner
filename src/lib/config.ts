@@ -87,6 +87,7 @@ export async function syncConfig(): Promise<Repo[]> {
     fullName: rc.url,
     label: rc.label,
     treeSha: null,
+    ref: null,
     syncStatus: 'idle' as const,
     syncError: null,
     totalFiles: 0,
@@ -101,7 +102,7 @@ export async function syncConfig(): Promise<Repo[]> {
   const merged = repos.map((r) => {
     const prev = existingMap.get(r.fullName);
     if (prev) {
-      return { ...r, treeSha: prev.treeSha, totalFiles: prev.totalFiles, cachedFiles: prev.cachedFiles, lastSyncAt: prev.lastSyncAt };
+      return { ...r, treeSha: prev.treeSha, ref: prev.ref ?? null, totalFiles: prev.totalFiles, cachedFiles: prev.cachedFiles, lastSyncAt: prev.lastSyncAt };
     }
     return r;
   });

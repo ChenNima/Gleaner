@@ -50,20 +50,24 @@ async function syncSingleRepo(
   // Apply path filtering
   const filteredMdFiles = filterByPaths(result.mdFiles, config?.includePaths, config?.excludePaths);
 
+  // Record the commit the content is synced from, so file-content fetches
+  // target the right branch/commit instead of always the default branch.
+  const ref = result.commitSha;
+
   if (!result.changed) {
     // Still load cached file tree into store (needed after page refresh)
     const cachedFiles = await db.files.where('repoFullName').equals(repo.fullName).toArray();
     useAppStore.getState().setFileTree(repo.fullName, cachedFiles);
 
-    await db.repos.update(repo.fullName, { syncStatus: 'done', lastSyncAt: new Date().toISOString() });
-    onProgress?.({ ...updatedRepo, syncStatus: 'done', lastSyncAt: new Date().toISOString() });
+    await db.repos.update(repo.fullName, { ref, syncStatus: 'done', lastSyncAt: new Date().toISOString() });
+    onProgress?.({ ...updatedRepo, ref, syncStatus: 'done', lastSyncAt: new Date().toISOString() });
     return;
   }
 
   // Update tree SHA and total file count
   const totalFiles = filteredMdFiles.length;
-  await db.repos.update(repo.fullName, { treeSha: result.treeSha, totalFiles });
-  onProgress?.({ ...updatedRepo, treeSha: result.treeSha, totalFiles });
+  await db.repos.update(repo.fullName, { treeSha: result.treeSha, ref, totalFiles });
+  onProgress?.({ ...updatedRepo, treeSha: result.treeSha, ref, totalFiles });
 
   // Get existing files for this repo to check which need updating
   const existingFiles = await db.files.where('repoFullName').equals(repo.fullName).toArray();
@@ -136,7 +140,7 @@ async function syncSingleRepo(
   while (i < toFetch.length) {
     const item = toFetch[i];
     try {
-      const content = await getFileContent(owner, repoName, item.path);
+      const content = await getFileContent(owner, repoName, item.path, ref ?? undefined);
       const fileId = `${repo.fullName}::${item.path}`;
       const backlinkContext = content.slice(0, 100);
       const titleFromContent = extractTitleFromContent(content) ??

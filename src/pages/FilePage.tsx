@@ -44,7 +44,8 @@ export default function FilePage() {
       // If file exists but content not cached, fetch it
       if (f && f.content === null && owner && name && filePath) {
         try {
-          const content = await getFileContent(owner, name, filePath);
+          const repo = await db.repos.get(repoFullName);
+          const content = await getFileContent(owner, name, filePath, repo?.ref ?? undefined);
           await db.files.update(fileId, {
             content,
             backlinkContext: content.slice(0, 100),
